@@ -6,8 +6,6 @@ import SettingsPanel from "@/components/SettingsPanel";
 import Waveform from "@/components/Waveform";
 import { type ProviderSettings, type AIProvider, getSettings, getProviderLabel, getSpeechEngineLabel, saveSettings } from "@/lib/settings";
 import { ConversationManager } from "@/lib/conversation";
-import TemplateSelector from "@/components/TemplateSelector";
-import TemplateManager from "@/components/TemplateManager";
 import HistoryPanel from "@/components/HistoryPanel";
 import UpdateNotification from "@/components/UpdateNotification";
 import { addEntry } from "@/lib/history";
@@ -55,7 +53,6 @@ export default function Home() {
     null
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [providerSettings, setProviderSettings] =
     useState<ProviderSettings>(getSettings);
@@ -468,18 +465,6 @@ export default function Home() {
             <p className="text-xs text-muted">
               {MODE_CONFIG[mode].description}
             </p>
-            <TemplateSelector
-              onSelect={(instruction) => {
-                // Set transcript to the template instruction and trigger optimize in transform-like mode
-                setTranscript((prev: string) => prev || instruction);
-              }}
-            />
-            <button
-              onClick={() => setTemplatesOpen(true)}
-              className="text-[10px] text-white/30 hover:text-white/60 transition-colors cursor-pointer"
-            >
-              Manage
-            </button>
           </div>
 
           {/* Optimized Output */}
@@ -523,12 +508,6 @@ export default function Home() {
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         onProviderChange={handleProviderChange}
-      />
-
-      {/* Template Manager */}
-      <TemplateManager
-        isOpen={templatesOpen}
-        onClose={() => setTemplatesOpen(false)}
       />
 
       {/* History Panel */}

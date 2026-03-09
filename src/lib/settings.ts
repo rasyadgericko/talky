@@ -4,29 +4,6 @@ export type Language = string; // ISO 639-1 codes (e.g., "en", "id", "ja") or "a
 
 export type SpeechEngine = "whisper-local" | "whisper-groq";
 
-export type WakeWord =
-  | "Alexa"
-  | "Bumblebee"
-  | "Computer"
-  | "Hey Google"
-  | "Hey Siri"
-  | "Jarvis"
-  | "Ok Google"
-  | "Porcupine"
-  | "Terminator";
-
-export const WAKE_WORDS: { value: WakeWord; label: string }[] = [
-  { value: "Computer", label: "Computer" },
-  { value: "Jarvis", label: "Jarvis" },
-  { value: "Hey Google", label: "Hey Google" },
-  { value: "Ok Google", label: "Ok Google" },
-  { value: "Hey Siri", label: "Hey Siri" },
-  { value: "Alexa", label: "Alexa" },
-  { value: "Bumblebee", label: "Bumblebee" },
-  { value: "Porcupine", label: "Porcupine" },
-  { value: "Terminator", label: "Terminator" },
-];
-
 export interface ProviderSettings {
   provider: AIProvider;
   groqApiKey: string;
@@ -35,10 +12,6 @@ export interface ProviderSettings {
   ollamaModel: string;
   language: Language;
   speechEngine: SpeechEngine;
-  // Wake word settings
-  wakeWordEnabled: boolean;
-  wakeWord: WakeWord;
-  picovoiceAccessKey: string;
 }
 
 const STORAGE_KEY = "talky_provider_settings";
@@ -51,9 +24,6 @@ const DEFAULT_SETTINGS: ProviderSettings = {
   ollamaModel: "llama3.2",
   language: "auto",
   speechEngine: "whisper-local",
-  wakeWordEnabled: false,
-  wakeWord: "Computer",
-  picovoiceAccessKey: "",
 };
 
 export function getSettings(): ProviderSettings {

@@ -6,8 +6,6 @@ import { getSettings, getProviderLabel, saveSettings, type AIProvider } from "@/
 import Waveform from "@/components/Waveform";
 import { ConversationManager } from "@/lib/conversation";
 import { addEntry } from "@/lib/history";
-import { useWakeWord } from "@/hooks/useWakeWord";
-
 type IslandMode = "dictate" | "transform";
 
 export default function IslandPage() {
@@ -174,17 +172,6 @@ export default function IslandPage() {
   } = useWhisperRecognition({
     onTranscript: handleTranscriptComplete,
     onAudioLevel: setAudioLevel,
-  });
-
-  // Wake word detection — triggers dictate mode when detected
-  const handleWakeWord = useCallback(() => {
-    // Ask Electron to show the island and start a dictate session
-    window.electronAPI?.triggerIsland();
-  }, []);
-
-  useWakeWord({
-    onWakeWord: handleWakeWord,
-    paused: isListening || isProcessing || isPasting || isTransforming,
   });
 
   // Keep recording ref in sync

@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   type AIProvider,
   type ProviderSettings,
-  type WakeWord,
   getSettings,
   saveSettings,
   getProviderLabel,
@@ -14,7 +13,6 @@ import {
   SPEECH_ENGINES,
   getSpeechEngineLabel,
   getSpeechEngineDescription,
-  WAKE_WORDS,
 } from "@/lib/settings";
 
 type PermissionStatus = "granted" | "denied" | "prompt" | "checking" | "error";
@@ -481,88 +479,6 @@ export default function SettingsPanel({
               <p className="text-xs text-green-400 bg-green-500/10 rounded-lg p-2.5">
                 Microphone is working.
               </p>
-            )}
-          </div>
-
-          {/* ─── Wake Word ───────────────────────────────────── */}
-          <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center">
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="white"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M9 18V5l12-2v13" />
-                    <circle cx="6" cy="18" r="3" />
-                    <circle cx="18" cy="16" r="3" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white">Wake Word</p>
-                  <p className="text-xs text-white/40">
-                    Hands-free activation by voice
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => updateSettings({ wakeWordEnabled: !settings.wakeWordEnabled })}
-                className={`w-11 h-6 rounded-full transition-colors cursor-pointer relative shrink-0 ${
-                  settings.wakeWordEnabled ? "bg-green-500" : "bg-white/20"
-                }`}
-              >
-                <span
-                  className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${
-                    settings.wakeWordEnabled ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
-
-            {settings.wakeWordEnabled && (
-              <>
-                <div className="space-y-2">
-                  <p className="text-[10px] text-white/40">Choose wake word</p>
-                  <select
-                    value={settings.wakeWord}
-                    onChange={(e) => updateSettings({ wakeWord: e.target.value as WakeWord })}
-                    className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-white/30 cursor-pointer appearance-none"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center", paddingRight: "24px" }}
-                  >
-                    {WAKE_WORDS.map((ww) => (
-                      <option key={ww.value} value={ww.value} className="bg-neutral-900">
-                        {ww.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-[10px] text-white/40">
-                    Picovoice Access Key{" "}
-                    <span className="text-white/20">(free at picovoice.ai)</span>
-                  </p>
-                  <input
-                    type="password"
-                    placeholder="Enter Picovoice access key"
-                    value={settings.picovoiceAccessKey}
-                    onChange={(e) => updateSettings({ picovoiceAccessKey: e.target.value })}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/30 outline-none focus:border-white/30 transition-colors"
-                  />
-                </div>
-
-                {settings.wakeWordEnabled && !settings.picovoiceAccessKey && (
-                  <p className="text-xs text-yellow-400 bg-yellow-500/10 rounded-lg p-2">
-                    A free Picovoice access key is required. Sign up at picovoice.ai to get one.
-                  </p>
-                )}
-              </>
             )}
           </div>
 
