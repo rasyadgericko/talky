@@ -1,0 +1,74 @@
+appId: com.talky.app
+productName: Talky
+copyright: Copyright 2026
+
+directories:
+  output: release
+  buildResources: build
+
+asar: true
+
+publish:
+  provider: github
+  owner: OWNER
+  repo: talky
+
+files:
+  - dist-electron/**/*
+  - node_modules/electron-updater/**/*
+  - node_modules/builder-util-runtime/**/*
+  - node_modules/lazy-val/**/*
+  - node_modules/semver/**/*
+  - node_modules/tiny-typed-emitter/**/*
+  - node_modules/fs-extra/**/*
+  - node_modules/graceful-fs/**/*
+  - node_modules/jsonfile/**/*
+  - node_modules/universalify/**/*
+  - node_modules/js-yaml/**/*
+  - node_modules/argparse/**/*
+  - node_modules/lodash.escaperegexp/**/*
+  - node_modules/lodash.isequal/**/*
+  - "!src"
+  - "!.next"
+  - "!electron"
+  - "!scripts"
+
+extraResources:
+  - from: electron-app-server/
+    to: standalone/
+
+mac:
+  category: public.app-category.productivity
+  hardenedRuntime: false
+  target:
+    - target: dmg
+      arch:
+        - arm64
+  icon: build/icon.icns
+  extendInfo:
+    NSMicrophoneUsageDescription: "Talky needs microphone access to convert your speech to text."
+    NSSpeechRecognitionUsageDescription: "Talky uses speech recognition to transcribe your voice into text."
+    NSAppleEventsUsageDescription: "Talky needs automation access to paste transcribed text into your active application."
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+
+dmg:
+  title: Talky
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
