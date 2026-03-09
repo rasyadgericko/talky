@@ -13,9 +13,12 @@ interface WaveformProps {
   className?: string;
 }
 
-const BAR_COUNT_FULL = 40;
-const BAR_COUNT_COMPACT = 24;
-const BUFFER_SIZE = 60;
+// Smooth flowing wave layers
+const WAVE_LAYERS = [
+  { freq: 1.2, speed: 0.8, amplitude: 0.6, opacity: 0.5 },
+  { freq: 2.0, speed: 1.2, amplitude: 0.35, opacity: 0.35 },
+  { freq: 3.2, speed: 1.8, amplitude: 0.2, opacity: 0.25 },
+];
 
 export default function Waveform({
   audioLevel,
@@ -24,29 +27,21 @@ export default function Waveform({
   className = "",
 }: WaveformProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const bufferRef = useRef<number[]>(new Array(BUFFER_SIZE).fill(0));
   const animFrameRef = useRef<number>(0);
   const isActiveRef = useRef(isActive);
   const audioLevelRef = useRef(audioLevel);
+  const smoothLevelRef = useRef(0);
+  const timeRef = useRef(0);
+  const lastFrameRef = useRef(0);
 
-  // Keep refs in sync with props
+  // Keep refs in sync
   isActiveRef.current = isActive;
   audioLevelRef.current = audioLevel;
 
-  // Push new audio level into rolling buffer on every change
-  useEffect(() => {
-    if (isActive) {
-      const buf = bufferRef.current;
-      buf.push(audioLevel);
-      if (buf.length > BUFFER_SIZE) buf.shift();
-    }
-  }, [audioLevel, isActive]);
-
-  // Single animation loop that runs while mounted
   useEffect(() => {
     let running = true;
 
-    function draw() {
+    function draw(timestamp: number) {
       if (!running) return;
 
       const canvas = canvasRef.current;
@@ -61,6 +56,11 @@ export default function Waveform({
         return;
       }
 
+      // Delta time
+      const dt = lastFrameRef.current ? (timestamp - lastFrameRef.current) / 1000 : 0.016;
+      lastFrameRef.current = timestamp;
+      timeRef.current += dt;
+
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width * dpr;
@@ -69,55 +69,75 @@ export default function Waveform({
 
       const width = rect.width;
       const height = rect.height;
-      const barCount = compact ? BAR_COUNT_COMPACT : BAR_COUNT_FULL;
-      const gap = compact ? 2 : 3;
-      const barWidth = (width - gap * (barCount - 1)) / barCount;
-      const buf = bufferRef.current;
-      const active = isActiveRef.current;
+      const midY = height / 2;
+
+      // Smooth the audio level (ease toward target)
+      const target = isActiveRef.current ? Math.min(audioLevelRef.current * 12, 1) : 0;
+      const easeSpeed = target > smoothLevelRef.current ? 12 : 4;
+      smoothLevelRef.current += (target - smoothLevelRef.current) * Math.min(easeSpeed * dt, 1);
+
+      const level = smoothLevelRef.current;
+      const t = timeRef.current;
 
       ctx.clearRect(0, 0, width, height);
 
-      for (let i = 0; i < barCount; i++) {
-        const bufIdx = Math.floor((i / barCount) * buf.length);
-        const level = buf[bufIdx] || 0;
+      // Draw each wave layer
+      for (const layer of WAVE_LAYERS) {
+        const amp = level * layer.amplitude * height * 0.8;
+        const baseOpacity = isActiveRef.current
+          ? layer.opacity + level * 0.4
+          : layer.opacity * 0.3;
 
-        // Normalize: RMS usually 0-0.1 for speech, scale to 0-1
-        const normalized = Math.min(level * 10, 1);
-
-        const minHeight = compact ? 2 : 3;
-        const maxHeight = height * 0.9;
-        const barHeight = minHeight + normalized * (maxHeight - minHeight);
-
-        const x = i * (barWidth + gap);
-        const y = (height - barHeight) / 2;
-
-        const opacity = active ? 0.3 + normalized * 0.7 : 0.15;
-        ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
         ctx.beginPath();
+        ctx.moveTo(0, midY);
 
-        // roundRect fallback for older Electron versions
-        const radius = barWidth / 2;
-        if (ctx.roundRect) {
-          ctx.roundRect(x, y, barWidth, barHeight, radius);
-        } else {
-          ctx.moveTo(x + radius, y);
-          ctx.lineTo(x + barWidth - radius, y);
-          ctx.arcTo(x + barWidth, y, x + barWidth, y + radius, radius);
-          ctx.lineTo(x + barWidth, y + barHeight - radius);
-          ctx.arcTo(x + barWidth, y + barHeight, x + barWidth - radius, y + barHeight, radius);
-          ctx.lineTo(x + radius, y + barHeight);
-          ctx.arcTo(x, y + barHeight, x, y + barHeight - radius, radius);
-          ctx.lineTo(x, y + radius);
-          ctx.arcTo(x, y, x + radius, y, radius);
+        const steps = Math.ceil(width / 2);
+        for (let i = 0; i <= steps; i++) {
+          const x = (i / steps) * width;
+          const normalizedX = x / width;
+
+          // Combine sine waves for organic motion
+          const wave =
+            Math.sin(normalizedX * Math.PI * 2 * layer.freq + t * layer.speed * Math.PI * 2) *
+            0.6 +
+            Math.sin(normalizedX * Math.PI * 2 * layer.freq * 1.5 + t * layer.speed * 1.3 * Math.PI * 2) *
+            0.3 +
+            Math.sin(normalizedX * Math.PI * 2 * 0.5 + t * 0.4 * Math.PI * 2) *
+            0.1;
+
+          // Taper at edges for smooth fade
+          const edgeFade = Math.sin(normalizedX * Math.PI);
+          const y = midY + wave * amp * edgeFade;
+
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
         }
-        ctx.fill();
+
+        ctx.strokeStyle = `rgba(255, 255, 255, ${Math.min(baseOpacity, 1)})`;
+        ctx.lineWidth = compact ? 1.5 : 2;
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.stroke();
+
+        // Fill a subtle gradient below the wave
+        if (amp > 0.5) {
+          ctx.lineTo(width, midY);
+          ctx.lineTo(0, midY);
+          ctx.closePath();
+          ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(baseOpacity * 0.15, 0.1)})`;
+          ctx.fill();
+        }
       }
 
-      // Fade out buffer when not active
-      if (!active) {
-        for (let i = 0; i < buf.length; i++) {
-          buf[i] *= 0.9;
-        }
+      // Subtle center line when idle
+      if (level < 0.05) {
+        const idleOpacity = 0.08 + Math.sin(t * 1.5) * 0.03;
+        ctx.beginPath();
+        ctx.moveTo(width * 0.1, midY);
+        ctx.lineTo(width * 0.9, midY);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${idleOpacity})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
       }
 
       animFrameRef.current = requestAnimationFrame(draw);
@@ -129,15 +149,15 @@ export default function Waveform({
       running = false;
       cancelAnimationFrame(animFrameRef.current);
     };
-  }, [compact]); // Only re-create loop if compact changes
+  }, [compact]);
 
-  const height = compact ? 24 : 48;
+  const h = compact ? 28 : 48;
 
   return (
     <canvas
       ref={canvasRef}
       className={`w-full ${className}`}
-      style={{ height }}
+      style={{ height: h }}
     />
   );
 }

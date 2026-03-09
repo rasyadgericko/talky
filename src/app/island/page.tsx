@@ -6,13 +6,31 @@ import { getSettings, getProviderLabel, saveSettings, type AIProvider } from "@/
 import Waveform from "@/components/Waveform";
 import { ConversationManager } from "@/lib/conversation";
 import { addEntry } from "@/lib/history";
+import { fixPunctuation } from "@/lib/punctuation";
+import { applyFormatting } from "@/lib/formatting";
+import { playStartSound, playStopSound, playPasteSound } from "@/lib/sounds";
+import { trackSession } from "@/lib/stats";
+import SettingsPanel from "@/components/SettingsPanel";
+import SnippetsPanel from "@/components/SnippetsPanel";
+import Onboarding from "@/components/Onboarding";
 type IslandMode = "dictate" | "transform";
+
+const COMPACT_SIZE = { width: 340, height: 56 };
+const EXPANDED_SIZE = { width: 420, height: 580 };
 
 export default function IslandPage() {
   const [targetApp, setTargetApp] = useState("");
   const [statusText, setStatusText] = useState("Ready");
   const [isPasting, setIsPasting] = useState(false);
   const [isTransforming, setIsTransforming] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [snippetsOpen, setSnippetsOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !localStorage.getItem("talky-onboarding-done");
+    }
+    return false;
+  });
 
   // Transform mode state
   const [mode, setMode] = useState<IslandMode>("dictate");
@@ -91,6 +109,11 @@ export default function IslandPage() {
             setStatusText("Copied to clipboard");
           }
 
+          // Sound + stats
+          if (getSettings().soundEnabled) playPasteSound();
+          const wordCount = result.split(/\s+/).filter(Boolean).length;
+          trackSession(wordCount, "transform");
+
           // Auto-save to history
           addEntry({
             text: selectedTextRef.current,
@@ -120,24 +143,38 @@ export default function IslandPage() {
       isPastingRef.current = true;
       setStatusText("Pasting...");
 
+      // Post-process transcribed text
+      const s = getSettings();
+      let processedText = text;
+      if (s.autoPunctuation) {
+        processedText = fixPunctuation(processedText);
+      }
+      if (s.markdownFormatting) {
+        processedText = applyFormatting(processedText);
+      }
+
       try {
-        const result = await window.electronAPI?.pasteToApp(text);
+        const result = await window.electronAPI?.pasteToApp(processedText);
         if (result?.success) {
           setStatusText(`Sent to ${result.targetApp}`);
         } else {
           setStatusText("Copied to clipboard");
         }
 
+        // Sound + stats
+        if (s.soundEnabled) playPasteSound();
+        const wordCount = processedText.split(/\s+/).filter(Boolean).length;
+        trackSession(wordCount, "dictate");
+
         // Auto-save to history
         addEntry({
-          text,
+          text: processedText,
           mode: "dictate",
           appName: result?.targetApp,
         });
       } catch {
         setStatusText("Copied to clipboard");
-        // Still save even if paste failed (text was transcribed)
-        addEntry({ text, mode: "dictate" });
+        addEntry({ text: processedText, mode: "dictate" });
       }
 
       // Auto-hide
@@ -192,6 +229,7 @@ export default function IslandPage() {
       (appName: string, selText: string) => {
         if (appName) {
           // First toggle: new session — sync provider from settings
+          closeSettings();
           setCurrentProvider(getSettings().provider);
           setTargetApp(appName);
           clearTranscript();
@@ -218,10 +256,12 @@ export default function IslandPage() {
           }
 
           startListening();
+          if (getSettings().soundEnabled) playStartSound();
         } else {
           // Second toggle: stop recording if active, otherwise dismiss
           if (isRecordingRef.current) {
             stopListening();
+            if (getSettings().soundEnabled) playStopSound();
             setStatusText("Transcribing...");
           } else if (
             !isPastingRef.current &&
@@ -243,6 +283,14 @@ export default function IslandPage() {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
+        if (settingsOpen) {
+          closeSettings();
+          return;
+        }
+        if (snippetsOpen) {
+          closeSnippets();
+          return;
+        }
         if (isListening) {
           cancelListening();
         }
@@ -252,7 +300,33 @@ export default function IslandPage() {
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [isListening, cancelListening]);
+  }, [isListening, cancelListening, settingsOpen, snippetsOpen]);
+
+  // Expand window on mount if onboarding is shown + sync shortcuts
+  useEffect(() => {
+    if (showOnboarding) {
+      window.electronAPI?.resizeIsland(EXPANDED_SIZE.width, EXPANDED_SIZE.height);
+    }
+    // Sync saved shortcuts to main process
+    const s = getSettings();
+    if (s.shortcuts) {
+      window.electronAPI?.updateShortcuts?.(s.shortcuts.dictate, s.shortcuts.transform);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Prevent page from going inactive when window is hidden/backgrounded
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden) {
+        // Force keep-alive: override the hidden state so timers/animation frames continue
+        Object.defineProperty(document, "hidden", { value: false, configurable: true });
+        Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+        document.dispatchEvent(new Event("visibilitychange"));
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
 
   // Prevent right-click context menu
   useEffect(() => {
@@ -264,10 +338,12 @@ export default function IslandPage() {
   const handleMicClick = () => {
     if (isListening) {
       stopListening();
+      if (getSettings().soundEnabled) playStopSound();
       setStatusText("Transcribing...");
     } else if (!isProcessing && !isPasting && !isTransforming) {
       clearTranscript();
       startListening();
+      if (getSettings().soundEnabled) playStartSound();
       if (mode === "transform") {
         setStatusText("Listening for instruction...");
       } else {
@@ -282,6 +358,8 @@ export default function IslandPage() {
     if (isListening) {
       cancelListening();
     }
+    closeSettings();
+    closeSnippets();
     window.electronAPI?.hideIsland();
     resetState();
   };
@@ -291,6 +369,48 @@ export default function IslandPage() {
     const next = PROVIDER_ORDER[(idx + 1) % PROVIDER_ORDER.length];
     setCurrentProvider(next);
     saveSettings({ provider: next });
+  };
+
+  const toggleSettings = () => {
+    const next = !settingsOpen;
+    setSettingsOpen(next);
+    if (next) {
+      closeSnippets();
+      window.electronAPI?.resizeIsland(EXPANDED_SIZE.width, EXPANDED_SIZE.height);
+    } else {
+      window.electronAPI?.resizeIsland(COMPACT_SIZE.width, COMPACT_SIZE.height);
+    }
+  };
+
+  const closeSettings = () => {
+    if (settingsOpen) {
+      setSettingsOpen(false);
+      window.electronAPI?.resizeIsland(COMPACT_SIZE.width, COMPACT_SIZE.height);
+    }
+  };
+
+  const toggleSnippets = () => {
+    const next = !snippetsOpen;
+    setSnippetsOpen(next);
+    if (next) {
+      closeSettings();
+      window.electronAPI?.resizeIsland(EXPANDED_SIZE.width, EXPANDED_SIZE.height);
+    } else {
+      window.electronAPI?.resizeIsland(COMPACT_SIZE.width, COMPACT_SIZE.height);
+    }
+  };
+
+  const closeSnippets = () => {
+    if (snippetsOpen) {
+      setSnippetsOpen(false);
+      window.electronAPI?.resizeIsland(COMPACT_SIZE.width, COMPACT_SIZE.height);
+    }
+  };
+
+  const completeOnboarding = () => {
+    setShowOnboarding(false);
+    localStorage.setItem("talky-onboarding-done", "1");
+    window.electronAPI?.resizeIsland(COMPACT_SIZE.width, COMPACT_SIZE.height);
   };
 
   const isBusy = isProcessing || isPasting || isTransforming;
@@ -309,25 +429,29 @@ export default function IslandPage() {
 
   return (
     <div
-      className="w-full h-screen flex items-center justify-center select-none"
+      className="w-full h-screen flex flex-col select-none"
       style={{ background: "transparent" }}
     >
+      {/* Compact Bar */}
       <div
-        className="w-full mx-2 flex items-center gap-3 px-3 py-2"
+        className="w-full flex items-center gap-2 px-2.5 py-1.5 shrink-0"
         style={{
           background: "#000000",
-          borderRadius: "32px",
+          borderRadius: settingsOpen || showOnboarding || snippetsOpen ? "16px 16px 0 0" : "32px",
           border: `1px solid ${mode === "transform" ? "rgba(168,85,247,0.3)" : "rgba(255,255,255,0.1)"}`,
-          boxShadow: mode === "transform"
-            ? "0 2px 8px rgba(168,85,247,0.08), 0 8px 32px rgba(168,85,247,0.06)"
-            : "0 2px 8px rgba(0,0,0,0.2), 0 8px 32px rgba(0,0,0,0.15)",
+          borderBottom: settingsOpen || showOnboarding || snippetsOpen ? "none" : undefined,
+          boxShadow: settingsOpen || showOnboarding || snippetsOpen
+            ? "none"
+            : mode === "transform"
+              ? "0 2px 8px rgba(168,85,247,0.08), 0 8px 32px rgba(168,85,247,0.06)"
+              : "0 2px 8px rgba(0,0,0,0.2), 0 8px 32px rgba(0,0,0,0.15)",
         }}
       >
         {/* Mic Button */}
         <button
           onClick={handleMicClick}
           disabled={isBusy}
-          className={`relative shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+          className={`relative shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
             isBusy
               ? "bg-neutral-700 cursor-not-allowed"
               : isListening
@@ -423,11 +547,36 @@ export default function IslandPage() {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-1 shrink-0">
-          {/* Expand to full window */}
+          {/* Snippets */}
           <button
-            onClick={() => window.electronAPI?.expandWindow()}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-            title="Open full window"
+            onClick={toggleSnippets}
+            disabled={isBusy || isListening}
+            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+              snippetsOpen
+                ? "text-white bg-white/15"
+                : isBusy || isListening
+                  ? "text-white/20 cursor-not-allowed"
+                  : "text-white/30 hover:text-white hover:bg-white/10"
+            }`}
+            title="Snippets"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+            </svg>
+          </button>
+          {/* Settings gear */}
+          <button
+            onClick={toggleSettings}
+            disabled={isBusy || isListening}
+            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+              settingsOpen
+                ? "text-white bg-white/15"
+                : isBusy || isListening
+                  ? "text-white/20 cursor-not-allowed"
+                  : "text-white/30 hover:text-white hover:bg-white/10"
+            }`}
+            title="Settings"
           >
             <svg
               width="12"
@@ -439,10 +588,8 @@ export default function IslandPage() {
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <polyline points="15 3 21 3 21 9" />
-              <polyline points="9 21 3 21 3 15" />
-              <line x1="21" y1="3" x2="14" y2="10" />
-              <line x1="3" y1="21" x2="10" y2="14" />
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
           </button>
           {/* Close */}
@@ -467,6 +614,52 @@ export default function IslandPage() {
           </button>
         </div>
       </div>
+
+      {/* Expanded Panel (Onboarding, Settings, or Snippets) */}
+      {(showOnboarding || settingsOpen || snippetsOpen) && (
+        <div
+          className="flex flex-col flex-1 overflow-hidden"
+          style={{
+            background: "#0a0a0a",
+            borderLeft: "1px solid rgba(255,255,255,0.1)",
+            borderRight: "1px solid rgba(255,255,255,0.1)",
+            borderBottom: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: "0 0 16px 16px",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+          }}
+        >
+          {showOnboarding ? (
+            <Onboarding onComplete={completeOnboarding} />
+          ) : snippetsOpen ? (
+            <SnippetsPanel
+              isOpen={snippetsOpen}
+              onClose={closeSnippets}
+              onPaste={async (text) => {
+                closeSnippets();
+                const result = await window.electronAPI?.pasteToApp(text);
+                if (getSettings().soundEnabled) playPasteSound();
+                if (result?.success) {
+                  setStatusText(`Sent to ${result.targetApp}`);
+                } else {
+                  setStatusText("Copied to clipboard");
+                }
+                setTimeout(() => {
+                  window.electronAPI?.hideIsland();
+                  resetState();
+                }, 800);
+              }}
+              inline
+            />
+          ) : (
+            <SettingsPanel
+              isOpen={settingsOpen}
+              onClose={closeSettings}
+              onProviderChange={(s) => setCurrentProvider(s.provider)}
+              inline
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

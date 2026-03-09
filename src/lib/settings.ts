@@ -4,6 +4,11 @@ export type Language = string; // ISO 639-1 codes (e.g., "en", "id", "ja") or "a
 
 export type SpeechEngine = "whisper-local" | "whisper-groq";
 
+export interface ShortcutSettings {
+  dictate: string;
+  transform: string;
+}
+
 export interface ProviderSettings {
   provider: AIProvider;
   groqApiKey: string;
@@ -12,6 +17,10 @@ export interface ProviderSettings {
   ollamaModel: string;
   language: Language;
   speechEngine: SpeechEngine;
+  soundEnabled: boolean;
+  markdownFormatting: boolean;
+  autoPunctuation: boolean;
+  shortcuts: ShortcutSettings;
 }
 
 const STORAGE_KEY = "talky_provider_settings";
@@ -24,6 +33,13 @@ const DEFAULT_SETTINGS: ProviderSettings = {
   ollamaModel: "llama3.2",
   language: "auto",
   speechEngine: "whisper-local",
+  soundEnabled: true,
+  markdownFormatting: false,
+  autoPunctuation: true,
+  shortcuts: {
+    dictate: "Alt+Space",
+    transform: "CommandOrControl+I",
+  },
 };
 
 export function getSettings(): ProviderSettings {
@@ -41,12 +57,18 @@ export function getSettings(): ProviderSettings {
       if (parsed.provider === "gemini") {
         parsed.provider = "ollama";
       }
+      // Deep merge nested objects
+      if (!parsed.shortcuts || typeof parsed.shortcuts !== "object") {
+        parsed.shortcuts = DEFAULT_SETTINGS.shortcuts;
+      } else {
+        parsed.shortcuts = { ...DEFAULT_SETTINGS.shortcuts, ...parsed.shortcuts };
+      }
       return { ...DEFAULT_SETTINGS, ...parsed };
     }
   } catch {
     // ignore parse errors
   }
-  return DEFAULT_SETTINGS;
+  return { ...DEFAULT_SETTINGS };
 }
 
 export function saveSettings(settings: Partial<ProviderSettings>): ProviderSettings {

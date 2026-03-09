@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("electronAPI", {
-  expandWindow: () => ipcRenderer.send("expand-window"),
+  resizeIsland: (width: number, height: number) => ipcRenderer.send("resize-island", width, height),
   hideIsland: () => ipcRenderer.send("hide-island"),
   triggerIsland: () => ipcRenderer.send("trigger-island"),
   pasteToApp: (text: string): Promise<{ success: boolean; targetApp: string }> =>
@@ -19,6 +19,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("request-microphone-access"),
   getMicrophoneStatus: (): Promise<string> =>
     ipcRenderer.invoke("get-microphone-status"),
+  // Custom shortcuts
+  updateShortcuts: (dictate: string, transform: string): Promise<boolean> =>
+    ipcRenderer.invoke("update-shortcuts", dictate, transform),
   // Auto-update
   installUpdate: () => ipcRenderer.send("install-update"),
   onUpdateAvailable: (callback: (version: string) => void) => {

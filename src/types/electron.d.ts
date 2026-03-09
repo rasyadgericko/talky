@@ -1,6 +1,6 @@
 interface Window {
   electronAPI?: {
-    expandWindow: () => void;
+    resizeIsland: (width: number, height: number) => void;
     hideIsland: () => void;
     triggerIsland: () => void;
     pasteToApp: (text: string) => Promise<{ success: boolean; targetApp: string }>;
@@ -8,6 +8,8 @@ interface Window {
     // Microphone permission
     requestMicrophoneAccess: () => Promise<boolean>;
     getMicrophoneStatus: () => Promise<string>;
+    // Custom shortcuts
+    updateShortcuts: (dictate: string, transform: string) => Promise<boolean>;
     // Auto-update
     installUpdate: () => void;
     onUpdateAvailable: (callback: (version: string) => void) => () => void;

@@ -16,7 +16,6 @@ import { existsSync, symlinkSync } from "fs";
 import { autoUpdater } from "electron-updater";
 import { getPlatformModule } from "./platform";
 
-let mainWindow: BrowserWindow | null = null;
 let islandWindow: BrowserWindow | null = null;
 let serverProcess: ChildProcess | null = null;
 let serverPort: number | null = null;
@@ -212,8 +211,8 @@ function createIslandWindow(port: number): void {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
 
-  const islandWidth = 380;
-  const islandHeight = 64;
+  const islandWidth = 340;
+  const islandHeight = 56;
   const islandX = Math.round((screenWidth - islandWidth) / 2);
   const islandY = screenHeight - islandHeight - 16;
 
@@ -229,11 +228,13 @@ function createIslandWindow(port: number): void {
     resizable: false,
     hasShadow: false,
     show: false,
+    paintWhenInitiallyHidden: true,
     backgroundColor: "#00000000",
     webPreferences: {
       preload: getPreloadPath(),
       nodeIntegration: false,
       contextIsolation: true,
+      backgroundThrottling: false,
     },
   });
 
@@ -244,51 +245,16 @@ function createIslandWindow(port: number): void {
   });
 }
 
-// ─── Main Window (Full App) — lazy created ────────────────────
-
-function createMainWindow(port: number): void {
-  const isMac = process.platform === "darwin";
-
-  mainWindow = new BrowserWindow({
-    width: 900,
-    height: 700,
-    minWidth: 600,
-    minHeight: 500,
-    ...(isMac
-      ? { titleBarStyle: "hiddenInset", trafficLightPosition: { x: 16, y: 16 } }
-      : { titleBarStyle: "default" }),
-    backgroundColor: "#000000",
-    show: false,
-    webPreferences: {
-      preload: getPreloadPath(),
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-  });
-
-  mainWindow.loadURL(`http://127.0.0.1:${port}`);
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
-}
-
 // ─── IPC Handlers ──────────────────────────────────────────────
 
 function setupIPC(): void {
-  ipcMain.on("expand-window", () => {
-    // Lazy-create main window on first expand
-    if (!mainWindow || mainWindow.isDestroyed()) {
-      if (serverPort) {
-        createMainWindow(serverPort);
-      }
-    }
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.show();
-      mainWindow.focus();
-    }
-    if (islandWindow && !islandWindow.isDestroyed()) {
-      islandWindow.hide();
-    }
+  ipcMain.on("resize-island", (_event: any, width: number, height: number) => {
+    if (!islandWindow || islandWindow.isDestroyed()) return;
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+    const x = Math.round((screenWidth - width) / 2);
+    const y = screenHeight - height - 16;
+    islandWindow.setBounds({ x, y, width, height }, true);
   });
 
   ipcMain.on("hide-island", () => {
@@ -337,6 +303,18 @@ function setupIPC(): void {
     }
     return "granted";
   });
+
+  // Custom shortcuts
+  ipcMain.handle("update-shortcuts", (_event, dictate: string, transform: string) => {
+    try {
+      registerShortcut(dictate, transform);
+      console.log(`Shortcuts updated: dictate=${dictate}, transform=${transform}`);
+      return true;
+    } catch (err) {
+      console.error("Failed to update shortcuts:", err);
+      return false;
+    }
+  });
 }
 
 // ─── Auto-Update ────────────────────────────────────────────────
@@ -347,22 +325,15 @@ function setupAutoUpdate(): void {
 
   autoUpdater.on("update-available", (info) => {
     console.log(`Update available: ${info.version}`);
-    // Notify all windows
-    const windows = [mainWindow, islandWindow].filter(
-      (w) => w && !w.isDestroyed()
-    );
-    for (const win of windows) {
-      win!.webContents.send("update-available", info.version);
+    if (islandWindow && !islandWindow.isDestroyed()) {
+      islandWindow.webContents.send("update-available", info.version);
     }
   });
 
   autoUpdater.on("update-downloaded", (info) => {
     console.log(`Update downloaded: ${info.version}`);
-    const windows = [mainWindow, islandWindow].filter(
-      (w) => w && !w.isDestroyed()
-    );
-    for (const win of windows) {
-      win!.webContents.send("update-downloaded", info.version);
+    if (islandWindow && !islandWindow.isDestroyed()) {
+      islandWindow.webContents.send("update-downloaded", info.version);
     }
   });
 
@@ -413,16 +384,29 @@ async function handleShortcutTrigger(captureText: boolean): Promise<void> {
   }
 }
 
-function registerShortcut(): void {
-  // Option+Space → Dictate mode (always skip text capture)
-  globalShortcut.register("Alt+Space", () => {
-    handleShortcutTrigger(false);
-  });
+function registerShortcut(dictate = "Alt+Space", transform = "CommandOrControl+I"): void {
+  globalShortcut.unregisterAll();
 
-  // Ctrl+I → Transform mode (capture selected text)
-  globalShortcut.register("CommandOrControl+I", () => {
-    handleShortcutTrigger(true);
-  });
+  try {
+    globalShortcut.register(dictate, () => {
+      handleShortcutTrigger(false);
+    });
+  } catch {
+    // Fallback to default if invalid accelerator
+    globalShortcut.register("Alt+Space", () => {
+      handleShortcutTrigger(false);
+    });
+  }
+
+  try {
+    globalShortcut.register(transform, () => {
+      handleShortcutTrigger(true);
+    });
+  } catch {
+    globalShortcut.register("CommandOrControl+I", () => {
+      handleShortcutTrigger(true);
+    });
+  }
 }
 
 // ─── Lifecycle ─────────────────────────────────────────────────

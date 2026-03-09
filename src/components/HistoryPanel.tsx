@@ -8,6 +8,7 @@ import {
   deleteEntry,
   clearHistory,
 } from "@/lib/history";
+import { addSnippet } from "@/lib/snippets";
 
 interface HistoryPanelProps {
   isOpen: boolean;
@@ -19,7 +20,9 @@ export default function HistoryPanel({ isOpen, onClose }: HistoryPanelProps) {
   const [query, setQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [savedSnippet, setSavedSnippet] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showExport, setShowExport] = useState(false);
 
   const refreshEntries = useCallback(() => {
     setEntries(query ? searchHistory(query) : getHistory());
@@ -48,6 +51,59 @@ export default function HistoryPanel({ isOpen, onClose }: HistoryPanelProps) {
     setShowClearConfirm(false);
   };
 
+  const handleSaveSnippet = (entry: TranscriptEntry) => {
+    const text = entry.optimizedText || entry.text;
+    const title = text.slice(0, 50) + (text.length > 50 ? "..." : "");
+    addSnippet(title, text);
+    setSavedSnippet(entry.id);
+    setTimeout(() => setSavedSnippet(null), 2000);
+  };
+
+  const handleExport = (format: "txt" | "md" | "csv") => {
+    const allEntries = getHistory();
+    let content = "";
+    let mime = "text/plain";
+    let ext = format;
+
+    if (format === "txt") {
+      content = allEntries
+        .map((e) => {
+          const date = new Date(e.timestamp).toLocaleString();
+          return `[${date}] ${e.mode || "dictate"}\n${e.text}${e.optimizedText ? `\nOptimized: ${e.optimizedText}` : ""}\n---`;
+        })
+        .join("\n\n");
+    } else if (format === "md") {
+      content = `# Talky History\n\nExported ${new Date().toLocaleDateString()}\n\n` +
+        allEntries
+          .map((e) => {
+            const date = new Date(e.timestamp).toLocaleString();
+            return `## ${date} — ${e.mode || "dictate"}\n\n${e.text}${e.optimizedText ? `\n\n**Optimized:** ${e.optimizedText}` : ""}`;
+          })
+          .join("\n\n---\n\n");
+    } else {
+      mime = "text/csv";
+      const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
+      content = "Date,Mode,App,Text,Optimized\n" +
+        allEntries
+          .map((e) => {
+            const date = new Date(e.timestamp).toLocaleString();
+            return [date, e.mode || "dictate", e.appName || "", e.text, e.optimizedText || ""]
+              .map(escape)
+              .join(",");
+          })
+          .join("\n");
+    }
+
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `talky-history.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setShowExport(false);
+  };
+
   const formatTime = (ts: number) => {
     const d = new Date(ts);
     const now = new Date();
@@ -69,12 +125,35 @@ export default function HistoryPanel({ isOpen, onClose }: HistoryPanelProps) {
           <h2 className="text-base font-semibold text-white">History</h2>
           <div className="flex items-center gap-2">
             {entries.length > 0 && (
-              <button
-                onClick={() => setShowClearConfirm(true)}
-                className="text-[10px] text-white/30 hover:text-red-400 transition-colors cursor-pointer"
-              >
-                Clear All
-              </button>
+              <>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowExport(!showExport)}
+                    className="text-[10px] text-white/30 hover:text-white/60 transition-colors cursor-pointer"
+                  >
+                    Export
+                  </button>
+                  {showExport && (
+                    <div className="absolute right-0 top-full mt-1 bg-[#111] border border-white/10 rounded-lg overflow-hidden shadow-xl z-10 min-w-[100px]">
+                      {(["txt", "md", "csv"] as const).map((fmt) => (
+                        <button
+                          key={fmt}
+                          onClick={() => handleExport(fmt)}
+                          className="w-full text-left px-3 py-1.5 text-[10px] text-white/60 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                        >
+                          .{fmt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowClearConfirm(true)}
+                  className="text-[10px] text-white/30 hover:text-red-400 transition-colors cursor-pointer"
+                >
+                  Clear All
+                </button>
+              </>
             )}
             <button
               onClick={onClose}
@@ -162,6 +241,12 @@ export default function HistoryPanel({ isOpen, onClose }: HistoryPanelProps) {
                           className="text-[10px] text-white/40 hover:text-white transition-colors cursor-pointer"
                         >
                           {copied === entry.id ? "Copied!" : "Copy"}
+                        </button>
+                        <button
+                          onClick={() => handleSaveSnippet(entry)}
+                          className="text-[10px] text-white/40 hover:text-green-400 transition-colors cursor-pointer"
+                        >
+                          {savedSnippet === entry.id ? "Saved!" : "Save Snippet"}
                         </button>
                         <button
                           onClick={() => handleDelete(entry.id)}
