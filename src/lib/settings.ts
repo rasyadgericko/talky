@@ -18,7 +18,6 @@ export interface ProviderSettings {
   language: Language;
   speechEngine: SpeechEngine;
   soundEnabled: boolean;
-  markdownFormatting: boolean;
   autoPunctuation: boolean;
   shortcuts: ShortcutSettings;
 }
@@ -34,7 +33,6 @@ const DEFAULT_SETTINGS: ProviderSettings = {
   language: "auto",
   speechEngine: "whisper-local",
   soundEnabled: true,
-  markdownFormatting: false,
   autoPunctuation: true,
   shortcuts: {
     dictate: "Alt+Space",

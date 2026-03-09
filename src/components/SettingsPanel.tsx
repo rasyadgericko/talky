@@ -328,27 +328,6 @@ export default function SettingsPanel({
         )}
       </div>
 
-      {/* ─── Privacy Note ──────────────────────────────────── */}
-      <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4">
-        <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-white">Privacy</p>
-            <p className="text-xs text-white/40 mt-0.5">
-              {settings.provider === "ollama" && settings.speechEngine === "whisper-local"
-                ? "All processing happens on your device. Speech is transcribed locally with Whisper, and text optimization uses Ollama. No data ever leaves your machine."
-                : settings.speechEngine === "whisper-groq"
-                  ? `Speech is transcribed via Groq cloud. Text optimization uses ${getProviderLabel(settings.provider)}${settings.provider === "ollama" ? " (local)" : " cloud API"}. API keys are stored locally.`
-                  : `Speech is transcribed locally with Whisper. Text optimization uses ${getProviderLabel(settings.provider)} cloud API. Your API key is stored locally and never shared.`}
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* ─── Text Processing ────────────────────────────── */}
       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 space-y-3">
         <div className="flex items-center gap-3">
@@ -369,12 +348,6 @@ export default function SettingsPanel({
             description="Fix spacing, capitalization, and punctuation"
             checked={settings.autoPunctuation}
             onChange={(v) => updateSettings({ autoPunctuation: v })}
-          />
-          <ToggleRow
-            label="Markdown Formatting"
-            description='Convert speech cues like "bullet point", "heading"'
-            checked={settings.markdownFormatting}
-            onChange={(v) => updateSettings({ markdownFormatting: v })}
           />
         </div>
       </div>
@@ -443,6 +416,27 @@ export default function SettingsPanel({
 
       {/* ─── Usage Statistics ────────────────────────────── */}
       <StatsSection />
+
+      {/* ─── Privacy Note ──────────────────────────────────── */}
+      <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-white">Privacy</p>
+            <p className="text-xs text-white/40 mt-0.5">
+              {settings.provider === "ollama" && settings.speechEngine === "whisper-local"
+                ? "All processing happens on your device. Speech is transcribed locally with Whisper, and text optimization uses Ollama. No data ever leaves your machine."
+                : settings.speechEngine === "whisper-groq"
+                  ? `Speech is transcribed via Groq cloud. Text optimization uses ${getProviderLabel(settings.provider)}${settings.provider === "ollama" ? " (local)" : " cloud API"}. API keys are stored locally.`
+                  : `Speech is transcribed locally with Whisper. Text optimization uses ${getProviderLabel(settings.provider)} cloud API. Your API key is stored locally and never shared.`}
+            </p>
+          </div>
+        </div>
+      </div>
     </>
   );
 

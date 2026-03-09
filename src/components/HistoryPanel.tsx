@@ -8,8 +8,6 @@ import {
   deleteEntry,
   clearHistory,
 } from "@/lib/history";
-import { addSnippet } from "@/lib/snippets";
-
 interface HistoryPanelProps {
   isOpen: boolean;
   onClose: () => void;
@@ -20,7 +18,6 @@ export default function HistoryPanel({ isOpen, onClose }: HistoryPanelProps) {
   const [query, setQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
-  const [savedSnippet, setSavedSnippet] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showExport, setShowExport] = useState(false);
 
@@ -49,14 +46,6 @@ export default function HistoryPanel({ isOpen, onClose }: HistoryPanelProps) {
     clearHistory();
     refreshEntries();
     setShowClearConfirm(false);
-  };
-
-  const handleSaveSnippet = (entry: TranscriptEntry) => {
-    const text = entry.optimizedText || entry.text;
-    const title = text.slice(0, 50) + (text.length > 50 ? "..." : "");
-    addSnippet(title, text);
-    setSavedSnippet(entry.id);
-    setTimeout(() => setSavedSnippet(null), 2000);
   };
 
   const handleExport = (format: "txt" | "md" | "csv") => {
@@ -241,12 +230,6 @@ export default function HistoryPanel({ isOpen, onClose }: HistoryPanelProps) {
                           className="text-[10px] text-white/40 hover:text-white transition-colors cursor-pointer"
                         >
                           {copied === entry.id ? "Copied!" : "Copy"}
-                        </button>
-                        <button
-                          onClick={() => handleSaveSnippet(entry)}
-                          className="text-[10px] text-white/40 hover:text-green-400 transition-colors cursor-pointer"
-                        >
-                          {savedSnippet === entry.id ? "Saved!" : "Save Snippet"}
                         </button>
                         <button
                           onClick={() => handleDelete(entry.id)}

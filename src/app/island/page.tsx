@@ -7,11 +7,9 @@ import Waveform from "@/components/Waveform";
 import { ConversationManager } from "@/lib/conversation";
 import { addEntry } from "@/lib/history";
 import { fixPunctuation } from "@/lib/punctuation";
-import { applyFormatting } from "@/lib/formatting";
 import { playStartSound, playStopSound, playPasteSound } from "@/lib/sounds";
 import { trackSession } from "@/lib/stats";
 import SettingsPanel from "@/components/SettingsPanel";
-import SnippetsPanel from "@/components/SnippetsPanel";
 import Onboarding from "@/components/Onboarding";
 type IslandMode = "dictate" | "transform";
 
@@ -24,7 +22,6 @@ export default function IslandPage() {
   const [isPasting, setIsPasting] = useState(false);
   const [isTransforming, setIsTransforming] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [snippetsOpen, setSnippetsOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => {
     if (typeof window !== "undefined") {
       return !localStorage.getItem("talky-onboarding-done");
@@ -148,9 +145,6 @@ export default function IslandPage() {
       let processedText = text;
       if (s.autoPunctuation) {
         processedText = fixPunctuation(processedText);
-      }
-      if (s.markdownFormatting) {
-        processedText = applyFormatting(processedText);
       }
 
       try {
@@ -287,10 +281,6 @@ export default function IslandPage() {
           closeSettings();
           return;
         }
-        if (snippetsOpen) {
-          closeSnippets();
-          return;
-        }
         if (isListening) {
           cancelListening();
         }
@@ -300,7 +290,7 @@ export default function IslandPage() {
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [isListening, cancelListening, settingsOpen, snippetsOpen]);
+  }, [isListening, cancelListening, settingsOpen]);
 
   // Expand window on mount if onboarding is shown + sync shortcuts
   useEffect(() => {
@@ -359,7 +349,6 @@ export default function IslandPage() {
       cancelListening();
     }
     closeSettings();
-    closeSnippets();
     window.electronAPI?.hideIsland();
     resetState();
   };
@@ -375,7 +364,6 @@ export default function IslandPage() {
     const next = !settingsOpen;
     setSettingsOpen(next);
     if (next) {
-      closeSnippets();
       window.electronAPI?.resizeIsland(EXPANDED_SIZE.width, EXPANDED_SIZE.height);
     } else {
       window.electronAPI?.resizeIsland(COMPACT_SIZE.width, COMPACT_SIZE.height);
@@ -385,24 +373,6 @@ export default function IslandPage() {
   const closeSettings = () => {
     if (settingsOpen) {
       setSettingsOpen(false);
-      window.electronAPI?.resizeIsland(COMPACT_SIZE.width, COMPACT_SIZE.height);
-    }
-  };
-
-  const toggleSnippets = () => {
-    const next = !snippetsOpen;
-    setSnippetsOpen(next);
-    if (next) {
-      closeSettings();
-      window.electronAPI?.resizeIsland(EXPANDED_SIZE.width, EXPANDED_SIZE.height);
-    } else {
-      window.electronAPI?.resizeIsland(COMPACT_SIZE.width, COMPACT_SIZE.height);
-    }
-  };
-
-  const closeSnippets = () => {
-    if (snippetsOpen) {
-      setSnippetsOpen(false);
       window.electronAPI?.resizeIsland(COMPACT_SIZE.width, COMPACT_SIZE.height);
     }
   };
@@ -437,10 +407,10 @@ export default function IslandPage() {
         className="w-full flex items-center gap-2 px-2.5 py-1.5 shrink-0"
         style={{
           background: "#000000",
-          borderRadius: settingsOpen || showOnboarding || snippetsOpen ? "16px 16px 0 0" : "32px",
+          borderRadius: settingsOpen || showOnboarding ? "16px 16px 0 0" : "32px",
           border: `1px solid ${mode === "transform" ? "rgba(168,85,247,0.3)" : "rgba(255,255,255,0.1)"}`,
-          borderBottom: settingsOpen || showOnboarding || snippetsOpen ? "none" : undefined,
-          boxShadow: settingsOpen || showOnboarding || snippetsOpen
+          borderBottom: settingsOpen || showOnboarding ? "none" : undefined,
+          boxShadow: settingsOpen || showOnboarding
             ? "none"
             : mode === "transform"
               ? "0 2px 8px rgba(168,85,247,0.08), 0 8px 32px rgba(168,85,247,0.06)"
@@ -547,24 +517,6 @@ export default function IslandPage() {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-1 shrink-0">
-          {/* Snippets */}
-          <button
-            onClick={toggleSnippets}
-            disabled={isBusy || isListening}
-            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-              snippetsOpen
-                ? "text-white bg-white/15"
-                : isBusy || isListening
-                  ? "text-white/20 cursor-not-allowed"
-                  : "text-white/30 hover:text-white hover:bg-white/10"
-            }`}
-            title="Snippets"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-              <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-            </svg>
-          </button>
           {/* Settings gear */}
           <button
             onClick={toggleSettings}
@@ -615,8 +567,8 @@ export default function IslandPage() {
         </div>
       </div>
 
-      {/* Expanded Panel (Onboarding, Settings, or Snippets) */}
-      {(showOnboarding || settingsOpen || snippetsOpen) && (
+      {/* Expanded Panel (Onboarding or Settings) */}
+      {(showOnboarding || settingsOpen) && (
         <div
           className="flex flex-col flex-1 overflow-hidden"
           style={{
@@ -630,26 +582,6 @@ export default function IslandPage() {
         >
           {showOnboarding ? (
             <Onboarding onComplete={completeOnboarding} />
-          ) : snippetsOpen ? (
-            <SnippetsPanel
-              isOpen={snippetsOpen}
-              onClose={closeSnippets}
-              onPaste={async (text) => {
-                closeSnippets();
-                const result = await window.electronAPI?.pasteToApp(text);
-                if (getSettings().soundEnabled) playPasteSound();
-                if (result?.success) {
-                  setStatusText(`Sent to ${result.targetApp}`);
-                } else {
-                  setStatusText("Copied to clipboard");
-                }
-                setTimeout(() => {
-                  window.electronAPI?.hideIsland();
-                  resetState();
-                }, 800);
-              }}
-              inline
-            />
           ) : (
             <SettingsPanel
               isOpen={settingsOpen}

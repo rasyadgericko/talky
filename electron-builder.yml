@@ -10,7 +10,7 @@ asar: true
 
 publish:
   provider: github
-  owner: OWNER
+  owner: rasyadgericko
   repo: talky
 
 files:
