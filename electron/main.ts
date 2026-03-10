@@ -7,6 +7,7 @@ import {
   nativeImage,
   screen,
   session,
+  shell,
   systemPreferences,
 } from "electron";
 import { fork, ChildProcess } from "child_process";
@@ -304,6 +305,11 @@ function setupIPC(): void {
     return "granted";
   });
 
+  // Open external URL in system browser
+  ipcMain.on("open-external", (_event, url: string) => {
+    shell.openExternal(url);
+  });
+
   // Custom shortcuts
   ipcMain.handle("update-shortcuts", (_event, dictate: string, transform: string) => {
     try {
@@ -456,7 +462,7 @@ app.on("ready", async () => {
     console.error("Failed to start application:", err);
     dialog.showErrorBox(
       "Talky - Startup Error",
-      `Failed to start the application.\n\n${err instanceof Error ? err.message : String(err)}\n\nMake sure Ollama is installed and try again.`
+      `Failed to start the application.\n\n${err instanceof Error ? err.message : String(err)}`
     );
     app.quit();
   }

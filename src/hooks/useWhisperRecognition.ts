@@ -2,15 +2,13 @@
 
 import { useState, useRef, useCallback } from "react";
 import { getSettings } from "@/lib/settings";
+import { getSession, getUserTier, isOwnerMode } from "@/lib/auth";
 
 // Silence detection settings
-const SILENCE_THRESHOLD = 0.01; // RMS level below this = silence
-const SILENCE_DURATION_MS = 2000; // 2 seconds of silence to auto-stop
-const MIN_SPEECH_DURATION_MS = 800; // Must have at least 0.8s of speech before auto-stop activates
+const SILENCE_THRESHOLD = 0.01;
+const SILENCE_DURATION_MS = 2000;
+const MIN_SPEECH_DURATION_MS = 800;
 
-/**
- * Downsample audio from source sample rate to 16 kHz mono.
- */
 function downsampleBuffer(buffer: Float32Array, srcRate: number): Float32Array {
   if (srcRate === 16000) return buffer;
   const ratio = srcRate / 16000;
@@ -23,20 +21,12 @@ function downsampleBuffer(buffer: Float32Array, srcRate: number): Float32Array {
   return result;
 }
 
-/**
- * Captures raw 16kHz mono PCM audio from the microphone using AudioContext.
- * Uses the system's native sample rate and downsamples to 16kHz for Whisper.
- * Monitors audio levels and calls onSilence() when silence is detected.
- */
 async function createPCMRecorder(
   stream: MediaStream,
   onSilence?: () => void,
   onAudioLevel?: (rms: number) => void
 ) {
-  // Use the default sample rate (system native) for best compatibility
   const audioContext = new AudioContext();
-
-  // Ensure AudioContext is running (can be suspended due to autoplay policy)
   if (audioContext.state === "suspended") {
     await audioContext.resume();
   }
@@ -58,7 +48,6 @@ async function createPCMRecorder(
     const input = e.inputBuffer.getChannelData(0);
     chunks.push(new Float32Array(input));
 
-    // Calculate RMS (root mean square) for silence detection
     let sum = 0;
     for (let i = 0; i < input.length; i++) {
       sum += input[i] * input[i];
@@ -67,16 +56,13 @@ async function createPCMRecorder(
     onAudioLevel?.(rms);
 
     const now = Date.now();
-
     if (rms > SILENCE_THRESHOLD) {
-      // Sound detected
       silenceStart = null;
       if (!hasSpeech) {
         hasSpeech = true;
         speechStart = now;
       }
     } else if (hasSpeech) {
-      // Silence after speech — start or continue silence timer
       if (silenceStart === null) {
         silenceStart = now;
       } else if (
@@ -84,7 +70,6 @@ async function createPCMRecorder(
         speechStart !== null &&
         now - speechStart >= MIN_SPEECH_DURATION_MS
       ) {
-        // Enough silence after sufficient speech — auto-stop
         stopped = true;
         onSilence?.();
       }
@@ -101,7 +86,6 @@ async function createPCMRecorder(
       source.disconnect();
       await audioContext.close();
 
-      // Merge all chunks
       const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
       const merged = new Float32Array(totalLength);
       let offset = 0;
@@ -109,17 +93,13 @@ async function createPCMRecorder(
         merged.set(chunk, offset);
         offset += chunk.length;
       }
-
-      // Downsample to 16kHz for Whisper
       return downsampleBuffer(merged, nativeSampleRate);
     },
   };
 }
 
 interface UseWhisperOptions {
-  /** Called with the new transcribed text when transcription succeeds */
   onTranscript?: (text: string) => void;
-  /** Called with RMS audio level (0-1) on each audio frame during recording */
   onAudioLevel?: (rms: number) => void;
 }
 
@@ -130,13 +110,10 @@ export function useWhisperRecognition(options?: UseWhisperOptions) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const recorderRef = useRef<{ stop: () => Promise<Float32Array> } | null>(
-    null
-  );
+  const recorderRef = useRef<{ stop: () => Promise<Float32Array> } | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const stopRef = useRef<(() => void) | null>(null);
 
-  // Use refs for callbacks to avoid stale closures in memoized functions
   const onTranscriptRef = useRef(options?.onTranscript);
   onTranscriptRef.current = options?.onTranscript;
   const onAudioLevelRef = useRef(options?.onAudioLevel);
@@ -154,27 +131,20 @@ export function useWhisperRecognition(options?: UseWhisperOptions) {
           noiseSuppression: true,
         },
       });
-      console.log("[Whisper] Microphone stream acquired, tracks:", stream.getAudioTracks().length);
 
       streamRef.current = stream;
       recorderRef.current = await createPCMRecorder(
         stream,
-        () => {
-          // Auto-stop on silence — call stopListening via ref to avoid stale closure
-          stopRef.current?.();
-        },
-        (rms) => {
-          onAudioLevelRef.current?.(rms);
-        }
+        () => stopRef.current?.(),
+        (rms) => onAudioLevelRef.current?.(rms)
       );
 
       setIsListening(true);
       setInterimTranscript("Recording... auto-stops on silence");
-      console.log("[Whisper] Recording started");
     } catch (err: any) {
       console.error("[Whisper] Failed to start recording:", err);
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        setError("Microphone access denied. Open System Settings → Privacy & Security → Microphone and enable it for Talky.");
+        setError("Microphone access denied. Open System Settings \u2192 Privacy & Security \u2192 Microphone and enable it for Talky.");
       } else if (err.name === "NotFoundError") {
         setError("No microphone found. Please connect a microphone.");
       } else {
@@ -191,11 +161,9 @@ export function useWhisperRecognition(options?: UseWhisperOptions) {
     setIsProcessing(true);
 
     try {
-      // Get raw PCM audio
       const audioData = await recorderRef.current.stop();
       recorderRef.current = null;
 
-      // Stop mic stream
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
@@ -207,15 +175,27 @@ export function useWhisperRecognition(options?: UseWhisperOptions) {
         return;
       }
 
-      // Build transcription URL with settings
+      // Determine engine based on owner mode or tier
       const s = getSettings();
-      const lang = s.language || "auto";
-      const engine = s.speechEngine || "whisper-local";
-      const params = new URLSearchParams({ lang, engine });
+      const session = await getSession();
+      let engine = "whisper-local";
+      let lang = "en";
 
-      // Pass Groq API key if using cloud transcription
-      if (engine === "whisper-groq" && s.groqApiKey) {
-        params.set("apiKey", s.groqApiKey);
+      if (isOwnerMode()) {
+        // Owner mode: use engine from settings, no auth needed
+        engine = s.engine === "groq" ? "whisper-groq" : "whisper-local";
+        lang = s.language || "auto";
+      } else if (session) {
+        const userTier = await getUserTier();
+        if (userTier === "pro") {
+          engine = "whisper-groq";
+          lang = s.language || "auto";
+        }
+      }
+
+      const params = new URLSearchParams({ lang, engine });
+      if (!isOwnerMode() && engine === "whisper-groq" && session) {
+        params.set("jwt", session.access_token);
       }
 
       setInterimTranscript(
@@ -237,7 +217,6 @@ export function useWhisperRecognition(options?: UseWhisperOptions) {
       const newText = (data.text || "").trim();
       if (newText && newText !== "[BLANK_AUDIO]") {
         setTranscript((prev) => (prev ? `${prev} ${newText}` : newText));
-        // Notify listener with the newly transcribed text
         onTranscriptRef.current?.(newText);
       } else {
         setError("No speech detected. Try speaking louder or longer.");
@@ -251,13 +230,11 @@ export function useWhisperRecognition(options?: UseWhisperOptions) {
     }
   }, []);
 
-  // Keep ref in sync so silence callback can call stopListening
   stopRef.current = stopListening;
 
-  /** Stop recording and discard audio without transcribing */
   const cancelListening = useCallback(async () => {
     if (recorderRef.current) {
-      await recorderRef.current.stop(); // Clean up AudioContext
+      await recorderRef.current.stop();
       recorderRef.current = null;
     }
     if (streamRef.current) {

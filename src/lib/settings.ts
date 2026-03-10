@@ -1,43 +1,29 @@
-export type AIProvider = "ollama" | "groq" | "cerebras";
-
 export type Language = string; // ISO 639-1 codes (e.g., "en", "id", "ja") or "auto"
-
-export type SpeechEngine = "whisper-local" | "whisper-groq";
 
 export interface ShortcutSettings {
   dictate: string;
   transform: string;
 }
 
+export type TranscriptionEngine = "groq" | "local";
+
 export interface ProviderSettings {
-  provider: AIProvider;
-  groqApiKey: string;
-  cerebrasApiKey: string;
-  ollamaUrl: string;
-  ollamaModel: string;
   language: Language;
-  speechEngine: SpeechEngine;
   soundEnabled: boolean;
-  autoPunctuation: boolean;
   shortcuts: ShortcutSettings;
+  engine: TranscriptionEngine;
 }
 
 const STORAGE_KEY = "talky_provider_settings";
 
 const DEFAULT_SETTINGS: ProviderSettings = {
-  provider: "ollama",
-  groqApiKey: "",
-  cerebrasApiKey: "",
-  ollamaUrl: "http://localhost:11434",
-  ollamaModel: "llama3.2",
-  language: "auto",
-  speechEngine: "whisper-local",
+  language: "en",
   soundEnabled: true,
-  autoPunctuation: true,
   shortcuts: {
     dictate: "Alt+Space",
     transform: "CommandOrControl+I",
   },
+  engine: "groq",
 };
 
 export function getSettings(): ProviderSettings {
@@ -46,22 +32,18 @@ export function getSettings(): ProviderSettings {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Migrate old geminiApiKey → cerebrasApiKey
-      if (parsed.geminiApiKey && !parsed.cerebrasApiKey) {
-        parsed.cerebrasApiKey = "";
-        delete parsed.geminiApiKey;
-      }
-      // Migrate old "gemini" provider → "ollama"
-      if (parsed.provider === "gemini") {
-        parsed.provider = "ollama";
-      }
       // Deep merge nested objects
       if (!parsed.shortcuts || typeof parsed.shortcuts !== "object") {
         parsed.shortcuts = DEFAULT_SETTINGS.shortcuts;
       } else {
         parsed.shortcuts = { ...DEFAULT_SETTINGS.shortcuts, ...parsed.shortcuts };
       }
-      return { ...DEFAULT_SETTINGS, ...parsed };
+      // Migration: drop removed fields silently
+      const { language, soundEnabled, shortcuts, engine } = {
+        ...DEFAULT_SETTINGS,
+        ...parsed,
+      };
+      return { language, soundEnabled, shortcuts, engine };
     }
   } catch {
     // ignore parse errors
@@ -80,49 +62,9 @@ export function saveSettings(settings: Partial<ProviderSettings>): ProviderSetti
   return updated;
 }
 
-export function getProviderLabel(provider: AIProvider): string {
-  switch (provider) {
-    case "groq":
-      return "Groq";
-    case "cerebras":
-      return "Cerebras";
-    case "ollama":
-      return "Ollama (Local)";
-  }
-}
-
-export function getProviderDescription(provider: AIProvider): string {
-  switch (provider) {
-    case "groq":
-      return "Llama 3.3 70B via Groq Cloud (free, fast)";
-    case "cerebras":
-      return "Llama 3.1 8B via Cerebras (free, fastest)";
-    case "ollama":
-      return "Local model via Ollama";
-  }
-}
-
 export function getLanguageLabel(lang: Language): string {
   const found = LANGUAGES.find((l) => l.value === lang);
   return found?.label || lang;
-}
-
-export function getSpeechEngineLabel(engine: SpeechEngine): string {
-  switch (engine) {
-    case "whisper-local":
-      return "Whisper (Local)";
-    case "whisper-groq":
-      return "Whisper (Groq)";
-  }
-}
-
-export function getSpeechEngineDescription(engine: SpeechEngine): string {
-  switch (engine) {
-    case "whisper-local":
-      return "Runs on your device — no internet needed, first use downloads ~145MB model";
-    case "whisper-groq":
-      return "Fast cloud transcription via Groq — requires Groq API key";
-  }
 }
 
 export const LANGUAGES: { value: Language; label: string }[] = [
@@ -146,9 +88,4 @@ export const LANGUAGES: { value: Language; label: string }[] = [
   { value: "ms", label: "Malay" },
   { value: "tr", label: "Turkish" },
   { value: "pl", label: "Polish" },
-];
-
-export const SPEECH_ENGINES: { value: SpeechEngine; label: string }[] = [
-  { value: "whisper-groq", label: "Groq Cloud" },
-  { value: "whisper-local", label: "Local" },
 ];

@@ -4,12 +4,15 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useWhisperRecognition } from "@/hooks/useWhisperRecognition";
 import SettingsPanel from "@/components/SettingsPanel";
 import Waveform from "@/components/Waveform";
-import { type ProviderSettings, type AIProvider, getSettings, getProviderLabel, getSpeechEngineLabel, saveSettings } from "@/lib/settings";
+import { type ProviderSettings, getSettings } from "@/lib/settings";
+import { getSession, getUserTier, onAuthStateChange, isOwnerMode, type UserTier } from "@/lib/auth";
+import { isOverLimit, addLocalWords, getRemainingWords } from "@/lib/usage";
 import { ConversationManager } from "@/lib/conversation";
 import HistoryPanel from "@/components/HistoryPanel";
 import UpdateNotification from "@/components/UpdateNotification";
+import UpgradePrompt from "@/components/UpgradePrompt";
+import AuthModal from "@/components/AuthModal";
 import { addEntry } from "@/lib/history";
-
 
 type Mode = "optimize" | "refine" | "summarize";
 
@@ -49,22 +52,35 @@ export default function Home() {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [mode, setMode] = useState<Mode>("optimize");
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<"transcript" | "optimized" | null>(
-    null
-  );
+  const [copied, setCopied] = useState<"transcript" | "optimized" | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [providerSettings, setProviderSettings] =
-    useState<ProviderSettings>(getSettings);
+  const [tier, setTier] = useState<UserTier>("free");
+  const [remainingWords, setRemainingWords] = useState(() => getRemainingWords());
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState<"word_limit" | "transform" | "language">("transform");
+  const [showAuth, setShowAuth] = useState(false);
 
-  const handleProviderChange = useCallback((s: ProviderSettings) => {
-    setProviderSettings(s);
+  // Check auth on mount
+  useEffect(() => {
+    const checkTier = async () => {
+      const session = await getSession();
+      if (session) {
+        const t = await getUserTier();
+        setTier(t);
+      }
+    };
+    checkTier();
+    const unsub = onAuthStateChange(async (session) => {
+      if (session) {
+        const t = await getUserTier();
+        setTier(t);
+      } else {
+        setTier("free");
+      }
+    });
+    return unsub;
   }, []);
-
-  const handleProviderSelect = (provider: AIProvider) => {
-    const updated = saveSettings({ provider });
-    setProviderSettings(updated);
-  };
 
   // ESC key to cancel recording
   useEffect(() => {
@@ -82,43 +98,35 @@ export default function Home() {
     const text = transcript.trim();
     if (!text) return;
 
+    // Pro-only feature gate (skip in owner mode)
+    if (!isOwnerMode() && tier === "free") {
+      setUpgradeReason("transform");
+      setShowUpgrade(true);
+      return;
+    }
+
     setIsOptimizing(true);
     setError(null);
     setOptimizedText("");
 
-    // Read latest settings
-    const s = getSettings();
-
     try {
+      const session = isOwnerMode() ? null : await getSession();
       const response = await fetch("/api/optimize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text,
           mode,
-          provider: s.provider,
-          apiKey:
-            s.provider === "groq"
-              ? s.groqApiKey
-              : s.provider === "cerebras"
-                ? s.cerebrasApiKey
-                : undefined,
-          ollamaUrl: s.ollamaUrl,
-          ollamaModel: s.ollamaModel,
           history: conversationRef.current.getHistory(),
+          jwt: session?.access_token,
         }),
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to optimize");
-      }
+      if (!response.ok) throw new Error(data.error || "Failed to optimize");
 
       setOptimizedText(data.result);
-      // Store this exchange for multi-turn context
       conversationRef.current.addTurn(text, data.result);
-      // Auto-save to history
       addEntry({ text, optimizedText: data.result, mode });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -127,10 +135,16 @@ export default function Home() {
     }
   };
 
-  const handleCopy = async (
-    text: string,
-    type: "transcript" | "optimized"
-  ) => {
+  const handleStartListening = () => {
+    if (!isOwnerMode() && tier === "free" && isOverLimit()) {
+      setUpgradeReason("word_limit");
+      setShowUpgrade(true);
+      return;
+    }
+    startListening();
+  };
+
+  const handleCopy = async (text: string, type: "transcript" | "optimized") => {
     await navigator.clipboard.writeText(text);
     setCopied(type);
     setTimeout(() => setCopied(null), 2000);
@@ -148,12 +162,9 @@ export default function Home() {
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="bg-card border border-card-border rounded-2xl p-8 max-w-md text-center">
           <div className="text-4xl mb-4">🎙️</div>
-          <h2 className="text-xl font-semibold mb-2">
-            Browser Not Supported
-          </h2>
+          <h2 className="text-xl font-semibold mb-2">Browser Not Supported</h2>
           <p className="text-muted">
-            Speech recognition is not supported in your browser. Please use
-            Chrome, Edge, or Safari.
+            Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.
           </p>
         </div>
       </div>
@@ -162,21 +173,12 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header — draggable title bar with space for macOS traffic lights */}
+      {/* Header */}
       <header className="border-b border-card-border pl-20 pr-6 py-4 drag-region">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="black"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                 <line x1="12" x2="12" y1="19" y2="22" />
@@ -192,45 +194,31 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            {tier === "pro" && (
+              <span className="px-2 py-0.5 bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30 rounded-full text-[10px] font-semibold text-purple-300 mr-2">
+                PRO
+              </span>
+            )}
             <button
               onClick={() => setHistoryOpen(true)}
               className="no-drag w-8 h-8 rounded-lg flex items-center justify-center hover:bg-card-border/30 transition-colors cursor-pointer text-muted hover:text-foreground"
               title="History"
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                <path d="M3 3v5h5" />
-                <path d="M12 7v5l4 2" />
+                <path d="M3 3v5h5" /><path d="M12 7v5l4 2" />
               </svg>
             </button>
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="no-drag w-8 h-8 rounded-lg flex items-center justify-center hover:bg-card-border/30 transition-colors cursor-pointer text-muted hover:text-foreground"
-            title="Settings"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="no-drag w-8 h-8 rounded-lg flex items-center justify-center hover:bg-card-border/30 transition-colors cursor-pointer text-muted hover:text-foreground"
+              title="Settings"
             >
-              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </button>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
           </div>
         </div>
       </header>
@@ -241,14 +229,10 @@ export default function Home() {
           {/* Mic Button */}
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
-              {isListening && (
-                <div className="absolute inset-0 bg-white/20 rounded-full pulse-ring" />
-              )}
-              {isProcessing && (
-                <div className="absolute inset-0 bg-white/10 rounded-full animate-pulse" />
-              )}
+              {isListening && <div className="absolute inset-0 bg-white/20 rounded-full pulse-ring" />}
+              {isProcessing && <div className="absolute inset-0 bg-white/10 rounded-full animate-pulse" />}
               <button
-                onClick={isListening ? stopListening : startListening}
+                onClick={isListening ? stopListening : handleStartListening}
                 disabled={isProcessing}
                 className={`relative z-10 w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
                   isProcessing
@@ -259,48 +243,16 @@ export default function Home() {
                 }`}
               >
                 {isProcessing ? (
-                  <svg
-                    className="animate-spin h-7 w-7"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="white"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="white"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
+                  <svg className="animate-spin h-7 w-7" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="white" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="white" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                 ) : isListening ? (
-                  <svg
-                    width="28"
-                    height="28"
-                    viewBox="0 0 24 24"
-                    fill="white"
-                  >
-                    <rect x="6" y="6" width="12" height="12" rx="2" />
-                  </svg>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
                 ) : (
-                  <svg
-                    width="28"
-                    height="28"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="black"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                    <line x1="12" x2="12" y1="19" y2="22" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" />
                   </svg>
                 )}
               </button>
@@ -310,7 +262,9 @@ export default function Home() {
                 ? interimTranscript || "Transcribing..."
                 : isListening
                   ? "Recording... click to stop & transcribe"
-                  : "Click to start speaking"}
+                  : !isOwnerMode() && tier === "free"
+                    ? `Click to start speaking \u00B7 ${remainingWords.toLocaleString()} words left`
+                    : "Click to start speaking"}
             </p>
             {isListening && (
               <div className="w-full max-w-xs">
@@ -331,33 +285,18 @@ export default function Home() {
             <div className="flex items-center justify-between px-5 py-3 border-b border-card-border">
               <div className="flex items-center gap-3">
                 <h2 className="text-sm font-medium text-muted">Transcript</h2>
-                <select
-                  value={providerSettings.provider}
-                  onChange={(e) => handleProviderSelect(e.target.value as AIProvider)}
-                  className="text-[11px] bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-muted hover:text-foreground hover:border-white/20 transition-colors cursor-pointer outline-none appearance-none"
-                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 6px center", paddingRight: "20px" }}
-                >
-                  <option value="groq" className="bg-neutral-900">Groq</option>
-                  <option value="cerebras" className="bg-neutral-900">Cerebras</option>
-                  <option value="ollama" className="bg-neutral-900">Ollama (Local)</option>
-                </select>
+                <span className="text-[10px] text-muted/60 bg-white/5 px-2 py-0.5 rounded">
+                  {isOwnerMode() ? (getSettings().engine === "groq" ? "Groq Cloud" : "Local Whisper") : tier === "pro" ? "Groq Cloud" : "Local Whisper"}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 {transcript && (
                   <>
-                    <button
-                      onClick={() => handleCopy(transcript, "transcript")}
-                      className="text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
-                    >
+                    <button onClick={() => handleCopy(transcript, "transcript")} className="text-xs text-muted hover:text-foreground transition-colors cursor-pointer">
                       {copied === "transcript" ? "Copied!" : "Copy"}
                     </button>
                     <span className="text-card-border">|</span>
-                    <button
-                      onClick={handleClear}
-                      className="text-xs text-muted hover:text-danger transition-colors cursor-pointer"
-                    >
-                      Clear
-                    </button>
+                    <button onClick={handleClear} className="text-xs text-muted hover:text-danger transition-colors cursor-pointer">Clear</button>
                   </>
                 )}
               </div>
@@ -366,12 +305,7 @@ export default function Home() {
               {transcript || interimTranscript ? (
                 <div className="text-sm leading-relaxed">
                   <span>{transcript}</span>
-                  {interimTranscript && (
-                    <span className="text-muted italic">
-                      {" "}
-                      {interimTranscript}
-                    </span>
-                  )}
+                  {interimTranscript && <span className="text-muted italic"> {interimTranscript}</span>}
                 </div>
               ) : (
                 <textarea
@@ -387,22 +321,18 @@ export default function Home() {
           {/* Mode Selector + Optimize Button */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="flex gap-1 bg-card border border-card-border rounded-xl p-1 flex-1">
-              {(
-                Object.entries(MODE_CONFIG) as [
-                  Mode,
-                  (typeof MODE_CONFIG)[Mode],
-                ][]
-              ).map(([key, config]) => (
+              {(Object.entries(MODE_CONFIG) as [Mode, (typeof MODE_CONFIG)[Mode]][]).map(([key, config]) => (
                 <button
                   key={key}
                   onClick={() => setMode(key)}
                   className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                    mode === key
-                      ? "bg-white text-black"
-                      : "text-muted hover:text-foreground"
+                    mode === key ? "bg-white text-black" : "text-muted hover:text-foreground"
                   }`}
                 >
                   {config.label}
+                  {!isOwnerMode() && tier === "free" && (
+                    <span className="ml-1 text-[8px] text-purple-400">PRO</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -413,47 +343,17 @@ export default function Home() {
             >
               {isOptimizing ? (
                 <>
-                  <svg
-                    className="animate-spin h-4 w-4"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Processing...
                 </>
               ) : (
                 <>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72" />
-                    <path d="m14 7 3 3" />
-                    <path d="M5 6v4" />
-                    <path d="M19 14v4" />
-                    <path d="M10 2v2" />
-                    <path d="M7 8H3" />
-                    <path d="M21 16h-4" />
-                    <path d="M11 3H9" />
+                    <path d="m14 7 3 3" /><path d="M5 6v4" /><path d="M19 14v4" /><path d="M10 2v2" /><path d="M7 8H3" /><path d="M21 16h-4" /><path d="M11 3H9" />
                   </svg>
                   {MODE_CONFIG[mode].label}
                 </>
@@ -462,9 +362,7 @@ export default function Home() {
           </div>
 
           <div className="flex items-center justify-center gap-3 -mt-2">
-            <p className="text-xs text-muted">
-              {MODE_CONFIG[mode].description}
-            </p>
+            <p className="text-xs text-muted">{MODE_CONFIG[mode].description}</p>
           </div>
 
           {/* Optimized Output */}
@@ -472,23 +370,14 @@ export default function Home() {
             <div className="bg-card border border-white/10 rounded-2xl overflow-hidden fade-in">
               <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-white/[0.02]">
                 <h2 className="text-sm font-medium text-accent">
-                  {mode === "optimize"
-                    ? "Optimized Prompt"
-                    : mode === "refine"
-                      ? "Refined Text"
-                      : "Summary"}
+                  {mode === "optimize" ? "Optimized Prompt" : mode === "refine" ? "Refined Text" : "Summary"}
                 </h2>
-                <button
-                  onClick={() => handleCopy(optimizedText, "optimized")}
-                  className="text-xs text-accent hover:text-foreground transition-colors cursor-pointer"
-                >
+                <button onClick={() => handleCopy(optimizedText, "optimized")} className="text-xs text-accent hover:text-foreground transition-colors cursor-pointer">
                   {copied === "optimized" ? "Copied!" : "Copy"}
                 </button>
               </div>
               <div className="p-5">
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {optimizedText}
-                </p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{optimizedText}</p>
               </div>
             </div>
           )}
@@ -498,7 +387,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-card-border px-6 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between text-xs text-muted">
-          <span>{getSpeechEngineLabel(providerSettings.speechEngine)} + {getProviderLabel(providerSettings.provider)}</span>
+          <span>{isOwnerMode() ? (getSettings().engine === "groq" ? "Groq Cloud" : "Local Whisper") : tier === "pro" ? "Groq Cloud" : "Local Whisper"}</span>
           <span>Build by RYC</span>
         </div>
       </footer>
@@ -507,17 +396,34 @@ export default function Home() {
       <SettingsPanel
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        onProviderChange={handleProviderChange}
+        tier={tier}
+        onTierChange={setTier}
       />
 
       {/* History Panel */}
-      <HistoryPanel
-        isOpen={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-      />
+      <HistoryPanel isOpen={historyOpen} onClose={() => setHistoryOpen(false)} />
 
       {/* Update Notification */}
       <UpdateNotification />
+
+      {/* Upgrade Prompt */}
+      <UpgradePrompt
+        isOpen={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        onSignIn={() => { setShowUpgrade(false); setShowAuth(true); }}
+        reason={upgradeReason}
+      />
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuth}
+        onClose={() => setShowAuth(false)}
+        onSuccess={async () => {
+          setShowAuth(false);
+          const t = await getUserTier();
+          setTier(t);
+        }}
+      />
     </div>
   );
 }

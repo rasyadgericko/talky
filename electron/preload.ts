@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Custom shortcuts
   updateShortcuts: (dictate: string, transform: string): Promise<boolean> =>
     ipcRenderer.invoke("update-shortcuts", dictate, transform),
+  // Open external URL
+  openExternal: (url: string) => ipcRenderer.send("open-external", url),
   // Auto-update
   installUpdate: () => ipcRenderer.send("install-update"),
   onUpdateAvailable: (callback: (version: string) => void) => {

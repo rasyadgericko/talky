@@ -1,5 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const SUPABASE_URL = "https://hveankwjtfvcztcrurlm.supabase.co";
+
+// ─── PCM Float32 → WAV encoder (for direct Groq calls) ────────
+
+function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const writeString = (offset: number, str: string) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  return buffer;
+}
+
 // ─── Local Whisper (via @xenova/transformers) ──────────────────
 
 let transcriberPromise: Promise<any> | null = null;
@@ -30,93 +60,6 @@ const LANGUAGE_MAP: Record<string, string> = {
   id: "indonesian",
 };
 
-// ─── Groq Whisper API ─────────────────────────────────────────
-
-async function transcribeWithGroq(
-  audioBuffer: ArrayBuffer,
-  langCode: string,
-  apiKey: string
-): Promise<string> {
-  // Convert raw PCM Float32 → WAV for Groq API
-  const wavBuffer = pcmToWav(new Float32Array(audioBuffer), 16000);
-
-  const formData = new FormData();
-  formData.append("file", new Blob([wavBuffer], { type: "audio/wav" }), "audio.wav");
-  formData.append("model", "whisper-large-v3-turbo");
-  formData.append("response_format", "json");
-
-  if (langCode !== "auto" && langCode) {
-    formData.append("language", langCode);
-  }
-
-  const response = await fetch(
-    "https://api.groq.com/openai/v1/audio/transcriptions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: formData,
-    }
-  );
-
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    const msg = (errData as any)?.error?.message || `Groq API error (${response.status})`;
-    throw new Error(msg);
-  }
-
-  const data = await response.json();
-  return (data.text || "").trim();
-}
-
-/** Convert raw PCM Float32 mono audio to WAV format */
-function pcmToWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
-  const numChannels = 1;
-  const bitsPerSample = 16;
-  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
-  const blockAlign = numChannels * (bitsPerSample / 8);
-  const dataSize = samples.length * (bitsPerSample / 8);
-  const headerSize = 44;
-  const buffer = new ArrayBuffer(headerSize + dataSize);
-  const view = new DataView(buffer);
-
-  // RIFF header
-  writeString(view, 0, "RIFF");
-  view.setUint32(4, 36 + dataSize, true);
-  writeString(view, 8, "WAVE");
-
-  // fmt chunk
-  writeString(view, 12, "fmt ");
-  view.setUint32(16, 16, true); // chunk size
-  view.setUint16(20, 1, true); // PCM format
-  view.setUint16(22, numChannels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, byteRate, true);
-  view.setUint16(32, blockAlign, true);
-  view.setUint16(34, bitsPerSample, true);
-
-  // data chunk
-  writeString(view, 36, "data");
-  view.setUint32(40, dataSize, true);
-
-  // Convert Float32 [-1, 1] to Int16
-  let offset = 44;
-  for (let i = 0; i < samples.length; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-    offset += 2;
-  }
-
-  return buffer;
-}
-
-function writeString(view: DataView, offset: number, str: string) {
-  for (let i = 0; i < str.length; i++) {
-    view.setUint8(offset + i, str.charCodeAt(i));
-  }
-}
-
 // ─── GET: Pre-load local model ────────────────────────────────
 
 export async function GET() {
@@ -133,9 +76,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const langCode = searchParams.get("lang") || "auto";
+    const langCode = searchParams.get("lang") || "en";
     const engine = searchParams.get("engine") || "whisper-local";
-    const apiKey = searchParams.get("apiKey") || "";
+    const jwt = searchParams.get("jwt") || "";
 
     // Receive raw PCM float32 audio data as binary
     const arrayBuffer = await request.arrayBuffer();
@@ -147,28 +90,59 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ─── Groq Whisper ───
+    // ─── Groq Cloud Transcription ───
     if (engine === "whisper-groq") {
-      if (!apiKey) {
+      // Owner mode: call Groq directly with server-side API key
+      const groqKey = process.env.GROQ_API_KEY;
+      if (groqKey) {
+        const wavBuffer = encodeWav(new Float32Array(arrayBuffer), 16000);
+        const formData = new FormData();
+        formData.append("file", new Blob([wavBuffer], { type: "audio/wav" }), "audio.wav");
+        formData.append("model", "whisper-large-v3-turbo");
+        if (langCode && langCode !== "auto") formData.append("language", langCode);
+
+        const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${groqKey}` },
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || `Groq error (${res.status})`);
+        return NextResponse.json({ text: data.text });
+      }
+
+      // Freemium mode: proxy through Supabase Edge Function
+      if (!jwt) {
         return NextResponse.json(
-          { error: "Groq API key is required for cloud transcription. Add it in Settings." },
-          { status: 400 }
+          { error: "Authentication required for cloud transcription." },
+          { status: 401 }
         );
       }
 
-      const text = await transcribeWithGroq(arrayBuffer, langCode, apiKey);
+      const res = await fetch(
+        `${SUPABASE_URL}/functions/v1/proxy-transcribe`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${jwt}`,
+            "Content-Type": "application/octet-stream",
+            "x-language": langCode,
+          },
+          body: arrayBuffer,
+        }
+      );
 
-      if (!text || text === "[BLANK_AUDIO]") {
-        return NextResponse.json(
-          { error: "No speech detected. Try speaking louder or longer." },
-          { status: 400 }
-        );
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || `Proxy error (${res.status})`);
       }
 
-      return NextResponse.json({ text });
+      return NextResponse.json({ text: data.text });
     }
 
-    // ─── Local Whisper ───
+    // ─── Free: Local Whisper ───
     const audioData = new Float32Array(arrayBuffer);
     const transcriber = await getTranscriber();
 
@@ -176,8 +150,11 @@ export async function POST(request: NextRequest) {
       task: "transcribe",
     };
 
+    // Free tier: force English
     if (langCode !== "auto" && LANGUAGE_MAP[langCode]) {
       options.language = LANGUAGE_MAP[langCode];
+    } else {
+      options.language = "english";
     }
 
     const result = await transcriber(audioData, options);

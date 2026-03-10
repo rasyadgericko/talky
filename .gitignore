@@ -44,3 +44,8 @@ next-env.d.ts
 /dist-electron
 /release
 /electron-app-server
+
+# website
+/website/node_modules
+/website/.next
+/website/out

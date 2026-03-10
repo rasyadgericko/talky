@@ -14,5 +14,7 @@ interface Window {
     installUpdate: () => void;
     onUpdateAvailable: (callback: (version: string) => void) => () => void;
     onUpdateDownloaded: (callback: (version: string) => void) => () => void;
+    // External links
+    openExternal: (url: string) => void;
   };
 }

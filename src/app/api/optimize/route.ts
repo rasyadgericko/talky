@@ -1,200 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// ─── System Prompts ────────────────────────────────────────────
+const SUPABASE_URL = "https://hveankwjtfvcztcrurlm.supabase.co";
 
-const systemPrompts: Record<string, string> = {
-  optimize: `You are a world-class prompt engineer. Your sole job is to take raw, dictated speech and rewrite it as a perfectly crafted prompt for an AI assistant (like ChatGPT or Claude).
-
-Think step-by-step about what the speaker actually wants, then produce a prompt that would get the best possible response.
-
-Rules:
-- FIRST: Identify the speaker's core intent — what do they actually want the AI to do?
-- Remove all filler words and speech artifacts (um, uh, like, you know, so, basically, I mean)
-- Remove false starts, corrections, and repeated phrases from the speech
-- If the intent is a question, make it precise and unambiguous
-- If the intent is a task, break it into clear numbered steps or bullet points
-- Add relevant context or constraints that were implied but not stated
-- Use direct, imperative language ("Write...", "Create...", "Analyze...", "Explain...")
-- If the speaker mentions a specific format (email, code, list, essay), specify it explicitly
-- Keep the speaker's domain-specific terminology intact
-- CRITICAL: Output ONLY the final prompt text — no titles, no labels, no "Here's the optimized prompt:", no quotation marks, no explanations`,
-
-  refine: `You are a senior editor at a top publication. Take raw dictated speech and transform it into polished, publication-ready prose.
-
-Rules:
-- Fix all grammar, spelling, and punctuation errors
-- Remove filler words, false starts, repetitions, and verbal tics
-- Restructure sentences for clarity and flow — break run-on sentences, combine fragments
-- Vary sentence length for natural rhythm (mix short punchy sentences with longer descriptive ones)
-- Maintain the speaker's original voice, personality, and intent — don't make it sound generic
-- Preserve technical terms, proper nouns, and domain-specific language exactly as spoken
-- Organize into logical paragraphs if the text is long enough
-- Use active voice where possible
-- CRITICAL: Output ONLY the refined text — no titles, no labels, no "Here's the refined version:", no quotation marks, no commentary`,
-
-  summarize: `You are an expert at distilling information. Take raw dictated speech and produce a clean, scannable summary.
-
-Rules:
-- Identify the 3-7 most important points, ideas, or action items
-- Present each point as a concise bullet using "- " prefix
-- Each bullet should be one clear sentence — no sub-bullets
-- Preserve specific details: names, numbers, dates, deadlines, decisions
-- Order bullets by importance or chronologically (whichever fits better)
-- Remove all filler, tangents, repetition, and small talk
-- If there are action items or decisions, put those first
-- CRITICAL: Output ONLY the bullet points — no titles like "Summary:", no introductions, no closing remarks`,
-
-  transform: `You are a precise text transformation engine. The user has highlighted text in an application and given you a spoken voice command describing how to change it. Execute the command exactly.
-
-Rules:
-- Apply the user's spoken instruction to the provided text faithfully
-- The instruction may be informal or brief (e.g., "make it better", "fix this", "shorter") — interpret it sensibly:
-  * "improve/better/enhance" → make it clearer, more professional, better structured
-  * "shorter/concise/brief" → reduce length while keeping all key information
-  * "longer/expand/elaborate" → add detail, examples, or explanations
-  * "fix/correct" → fix grammar, spelling, punctuation, and factual errors
-  * "formal/professional" → elevate the register and tone
-  * "casual/friendly" → make it conversational and approachable
-  * "translate to X" → translate to the specified language
-  * "simplify" → use simpler words and shorter sentences
-- Preserve the original formatting style (markdown, plain text, code, etc.)
-- Preserve the original length roughly unless the instruction explicitly asks to change it
-- Do NOT wrap the output in quotation marks or code blocks unless the original had them
-- CRITICAL: Output ONLY the transformed text — no labels, no "Here's the result:", no explanations of what you changed`,
+const SYSTEM_PROMPTS: Record<string, string> = {
+  optimize: `You are a dictation-to-AI-prompt converter. The user has spoken a rough idea aloud. Your job:\n1. Identify the user's intent and desired output.\n2. Rewrite their spoken text into a clear, well-structured AI prompt.\n3. Add relevant context, constraints, or formatting instructions that would help an AI produce better output.\n4. Use direct, imperative language (e.g., "Write a...", "Create a...", "Analyze...").\n5. If the dictation mentions a specific format (email, code, essay, list), include format requirements.\nReturn ONLY the optimized prompt. No preamble, no explanation, no quotes around it.`,
+  refine: `You are a dictation refiner. The user has spoken text aloud that they want polished into clean, publication-ready prose.\n1. Fix all grammar, spelling, and punctuation errors.\n2. Improve sentence structure and flow while preserving the speaker's voice and intent.\n3. Remove filler words, false starts, and verbal tics (um, uh, like, you know, so, basically).\n4. Maintain the original meaning — do not add new ideas or change the message.\n5. Format appropriately (paragraphs, lists, etc.) based on context.\nReturn ONLY the refined text. No preamble, no explanation.`,
+  summarize: `You are a dictation summarizer. The user has spoken at length and needs a concise summary.\n1. Extract the key points, decisions, and action items.\n2. Organize into 3-7 bullet points, most important first.\n3. Use clear, direct language — no filler.\n4. If action items exist, separate them with a header.\n5. Preserve specific names, dates, numbers, and commitments.\nReturn ONLY the summary. No preamble, no explanation.`,
+  transform: `You are a text transformer. The user has selected existing text and spoken an instruction for how to change it. Your job:\n1. Apply the user's spoken instruction to the selected text.\n2. Common operations: rewrite, shorten, expand, make formal/casual, translate, fix grammar, change tone, restructure.\n3. If the instruction is ambiguous, make a reasonable interpretation.\n4. Preserve the essential meaning unless told to change it.\nReturn ONLY the transformed text. No preamble, no explanation, no quotes.`,
 };
-
-// ─── Provider Implementations ──────────────────────────────────
-
-interface HistoryMessage {
-  role: "user" | "assistant";
-  content: string;
-}
-
-async function callOllama(
-  systemPrompt: string,
-  userMessage: string,
-  ollamaUrl: string,
-  ollamaModel: string,
-  history: HistoryMessage[] = []
-): Promise<string> {
-  const response = await fetch(`${ollamaUrl}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: ollamaModel,
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...history,
-        { role: "user", content: userMessage },
-      ],
-      stream: false,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Ollama error:", errorText);
-    throw new Error("Ollama request failed");
-  }
-
-  const data = await response.json();
-  return data.message?.content || "";
-}
-
-async function callGroq(
-  systemPrompt: string,
-  userMessage: string,
-  apiKey: string,
-  history: HistoryMessage[] = []
-): Promise<string> {
-  const response = await fetch(
-    "https://api.groq.com/openai/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...history,
-          { role: "user", content: userMessage },
-        ],
-        temperature: 0.7,
-        max_tokens: 4096,
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const msg =
-      (errorData as Record<string, Record<string, string>>)?.error?.message ||
-      `Groq API error (${response.status})`;
-    console.error("Groq error:", msg);
-    throw new Error(msg);
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || "";
-}
-
-async function callCerebras(
-  systemPrompt: string,
-  userMessage: string,
-  apiKey: string,
-  history: HistoryMessage[] = []
-): Promise<string> {
-  const response = await fetch(
-    "https://api.cerebras.ai/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "llama3.1-8b",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...history,
-          { role: "user", content: userMessage },
-        ],
-        temperature: 0.7,
-        max_tokens: 4096,
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const msg =
-      (errorData as Record<string, Record<string, string>>)?.error?.message ||
-      `Cerebras API error (${response.status})`;
-    console.error("Cerebras error:", msg);
-    throw new Error(msg);
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || "";
-}
-
-// ─── Route Handler ─────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
   try {
-    const {
-      text,
-      mode,
-      instruction,
-      provider = "ollama",
-      apiKey,
-      ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434",
-      ollamaModel = process.env.OLLAMA_MODEL || "llama3.2",
-      history = [],
-    } = await request.json();
+    const { text, mode, instruction, history = [], jwt } = await request.json();
 
     if (!text || typeof text !== "string") {
       return NextResponse.json(
@@ -203,79 +20,85 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build the prompt
-    let systemPrompt: string;
-    let userMessage: string;
+    // Owner mode: call Groq directly with server-side API key
+    const groqKey = process.env.GROQ_API_KEY;
+    if (groqKey) {
+      const systemPrompt = SYSTEM_PROMPTS[mode || "optimize"];
+      if (!systemPrompt) {
+        return NextResponse.json({ error: "Invalid mode" }, { status: 400 });
+      }
 
-    if (mode === "transform" && instruction) {
-      systemPrompt = systemPrompts.transform;
-      userMessage = `Instruction: ${instruction}\n\nText to transform:\n${text}`;
-    } else {
-      systemPrompt = systemPrompts[mode] || systemPrompts.optimize;
-      userMessage = text;
+      const messages: Array<{ role: string; content: string }> = [
+        { role: "system", content: systemPrompt },
+      ];
+
+      if (history && Array.isArray(history)) {
+        for (const turn of history) {
+          if (turn.role && turn.content) {
+            messages.push({ role: turn.role, content: turn.content });
+          }
+        }
+      }
+
+      let userMessage = text;
+      if (mode === "transform" && instruction) {
+        userMessage = `SELECTED TEXT:\n${text}\n\nINSTRUCTION: ${instruction}`;
+      }
+      messages.push({ role: "user", content: userMessage });
+
+      const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${groqKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages,
+          temperature: 0.3,
+          max_tokens: 2048,
+        }),
+      });
+
+      if (!groqRes.ok) {
+        const errText = await groqRes.text();
+        throw new Error(`Groq error (${groqRes.status}): ${errText}`);
+      }
+
+      const result = await groqRes.json();
+      const outputText = result.choices?.[0]?.message?.content || "";
+      return NextResponse.json({ result: outputText.trim() });
     }
 
-    // Route to the chosen provider
-    let result: string;
-
-    switch (provider) {
-      case "groq": {
-        if (!apiKey) {
-          return NextResponse.json(
-            { error: "Groq API key is required. Add it in Settings." },
-            { status: 400 }
-          );
-        }
-        result = await callGroq(systemPrompt, userMessage, apiKey, history);
-        break;
-      }
-      case "cerebras": {
-        if (!apiKey) {
-          return NextResponse.json(
-            { error: "Cerebras API key is required. Add it in Settings." },
-            { status: 400 }
-          );
-        }
-        result = await callCerebras(systemPrompt, userMessage, apiKey, history);
-        break;
-      }
-      case "ollama":
-      default: {
-        result = await callOllama(
-          systemPrompt,
-          userMessage,
-          ollamaUrl,
-          ollamaModel,
-          history
-        );
-        break;
-      }
+    // Freemium mode: proxy through Supabase Edge Function
+    if (!jwt) {
+      return NextResponse.json(
+        { error: "Authentication required for AI optimization. Upgrade to Pro." },
+        { status: 401 }
+      );
     }
 
-    return NextResponse.json({ result });
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/proxy-optimize`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text, mode, instruction, history }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || `Proxy error (${res.status})`);
+    }
+
+    return NextResponse.json({ result: data.result });
   } catch (error) {
     console.error("Optimization error:", error);
 
-    // Ollama connection error
-    if (
-      error instanceof TypeError &&
-      (error as NodeJS.ErrnoException).cause
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Cannot connect to Ollama. Make sure Ollama is running (open the Ollama app).",
-        },
-        { status: 503 }
-      );
-    }
-
-    // Pass through provider-specific error messages
     if (error instanceof Error && error.message) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json(
