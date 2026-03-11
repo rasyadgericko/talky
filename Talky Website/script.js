@@ -117,15 +117,20 @@ var timelineEl = document.getElementById('timeline');
 var timelineGlow = document.getElementById('timeline-glow');
 var timelineHalo = document.getElementById('timeline-halo');
 
+var timelineRAF;
 function updateTimeline() {
-  var rect = timelineEl.getBoundingClientRect();
-  var viewH = window.innerHeight;
-  var start = rect.top - viewH;
-  var end = rect.bottom - viewH * 0.5;
-  var progress = Math.min(1, Math.max(0, (0 - start) / (end - start)));
-  timelineGlow.style.height = (progress * 100) + '%';
-  timelineHalo.style.top = (progress * 100) + '%';
-  timelineHalo.style.opacity = progress > 0.02 ? '1' : '0';
+  if (timelineRAF) return;
+  timelineRAF = requestAnimationFrame(function() {
+    var rect = timelineEl.getBoundingClientRect();
+    var viewH = window.innerHeight;
+    var start = rect.top - viewH;
+    var end = rect.bottom - viewH * 0.5;
+    var progress = Math.min(1, Math.max(0, (0 - start) / (end - start)));
+    timelineGlow.style.height = (progress * 100) + '%';
+    timelineHalo.style.top = (progress * 100) + '%';
+    timelineHalo.style.opacity = progress > 0.02 ? '1' : '0';
+    timelineRAF = null;
+  });
 }
 window.addEventListener('scroll', updateTimeline, { passive: true });
 updateTimeline();
@@ -258,10 +263,17 @@ function toggleFaq(idx) {
   var PARTICLE_COUNT = 80;
   var mouse = { x: null, y: null };
 
+  var resizeRAF;
   function resize() {
-    var section = canvas.parentElement;
-    canvas.width = section.offsetWidth;
-    canvas.height = section.offsetHeight;
+    if (resizeRAF) return;
+    resizeRAF = requestAnimationFrame(function() {
+      var section = canvas.parentElement;
+      var w = section.offsetWidth;
+      var h = section.offsetHeight;
+      canvas.width = w;
+      canvas.height = h;
+      resizeRAF = null;
+    });
   }
   resize();
   window.addEventListener('resize', resize);
@@ -343,10 +355,17 @@ function toggleFaq(idx) {
   var PARTICLE_COUNT = 120;
   var mouse = { x: null, y: null };
 
+  var resizeRAF2;
   function resize() {
-    var section = canvas.parentElement;
-    canvas.width = section.offsetWidth;
-    canvas.height = section.offsetHeight;
+    if (resizeRAF2) return;
+    resizeRAF2 = requestAnimationFrame(function() {
+      var section = canvas.parentElement;
+      var w = section.offsetWidth;
+      var h = section.offsetHeight;
+      canvas.width = w;
+      canvas.height = h;
+      resizeRAF2 = null;
+    });
   }
   resize();
   window.addEventListener('resize', resize);
@@ -445,9 +464,9 @@ function toggleFaq(idx) {
   var allBeams = [];
   var animStarted = false;
 
-  function getCenter(el, container) {
+  function getCenter(el, container, containerRect) {
     var r = el.getBoundingClientRect();
-    var c = container.getBoundingClientRect();
+    var c = containerRect;
     return { x: r.left - c.left + r.width / 2, y: r.top - c.top + r.height / 2 };
   }
 
@@ -463,12 +482,12 @@ function toggleFaq(idx) {
     return el;
   }
 
-  function addBeam(svg, defs, container, fromEl, toEl, opts) {
-    var from = getCenter(fromEl, container);
-    var to = getCenter(toEl, container);
+  function addBeam(svg, defs, container, fromEl, toEl, opts, containerRect, containerW) {
+    var from = getCenter(fromEl, container, containerRect);
+    var to = getCenter(toEl, container, containerRect);
     var d = makeCurvedPath(from, to, opts.curvature || 0);
     var id = 'bg' + (Math.random() * 1e6 | 0);
-    var W = container.offsetWidth;
+    var W = containerW;
 
     // Gradient definition
     var grad = createEl('linearGradient', { id: id, gradientUnits: 'userSpaceOnUse', x1: '0', y1: '0', x2: '0', y2: '0' });
@@ -528,6 +547,10 @@ function toggleFaq(idx) {
     var right = ['bn4', 'bn5', 'bn6'].map(function(id) { return document.getElementById(id); });
     if (!center) return;
 
+    // Batch-read layout to avoid forced reflow
+    var containerRect = container.getBoundingClientRect();
+    var containerW = container.offsetWidth;
+
     var curvatures = [-55, 0, 55];
     var curvatureColors = [['#321CD6','#5B4EFF'], ['#4F35E8','#321CD6'], ['#321CD6','#4F35E8']];
     var lc = curvatureColors;
@@ -535,11 +558,11 @@ function toggleFaq(idx) {
 
     left.forEach(function(el, i) {
       if (!el) return;
-      addBeam(svg, defs, container, el, center, { curvature: curvatures[i], c1: lc[i][0], c2: lc[i][1], delay: i * 1.3, duration: 4 + i * 0.4 });
+      addBeam(svg, defs, container, el, center, { curvature: curvatures[i], c1: lc[i][0], c2: lc[i][1], delay: i * 1.3, duration: 4 + i * 0.4 }, containerRect, containerW);
     });
     right.forEach(function(el, i) {
       if (!el) return;
-      addBeam(svg, defs, container, center, el, { curvature: curvatures[i], c1: rc[i][0], c2: rc[i][1], delay: i * 1.3 + 0.65, duration: 4 + i * 0.4 });
+      addBeam(svg, defs, container, center, el, { curvature: curvatures[i], c1: rc[i][0], c2: rc[i][1], delay: i * 1.3 + 0.65, duration: 4 + i * 0.4 }, containerRect, containerW);
     });
 
     if (!animStarted) {
