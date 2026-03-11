@@ -263,17 +263,15 @@ function toggleFaq(idx) {
   var PARTICLE_COUNT = 80;
   var mouse = { x: null, y: null };
 
-  var resizeRAF;
   function resize() {
-    if (resizeRAF) return;
-    resizeRAF = requestAnimationFrame(function() {
-      var section = canvas.parentElement;
-      var w = section.offsetWidth;
-      var h = section.offsetHeight;
-      canvas.width = w;
-      canvas.height = h;
-      resizeRAF = null;
-    });
+    var section = canvas.parentElement;
+    canvas.width = section.offsetWidth;
+    canvas.height = section.offsetHeight;
+    // Re-scatter particles across full canvas
+    for (var i = 0; i < particles.length; i++) {
+      particles[i].x = Math.random() * canvas.width;
+      particles[i].y = Math.random() * canvas.height;
+    }
   }
   resize();
   window.addEventListener('resize', resize);
@@ -355,17 +353,15 @@ function toggleFaq(idx) {
   var PARTICLE_COUNT = 120;
   var mouse = { x: null, y: null };
 
-  var resizeRAF2;
   function resize() {
-    if (resizeRAF2) return;
-    resizeRAF2 = requestAnimationFrame(function() {
-      var section = canvas.parentElement;
-      var w = section.offsetWidth;
-      var h = section.offsetHeight;
-      canvas.width = w;
-      canvas.height = h;
-      resizeRAF2 = null;
-    });
+    var section = canvas.parentElement;
+    canvas.width = section.offsetWidth;
+    canvas.height = section.offsetHeight;
+    // Re-scatter particles across full canvas
+    for (var i = 0; i < particles.length; i++) {
+      particles[i].x = Math.random() * canvas.width;
+      particles[i].y = Math.random() * canvas.height;
+    }
   }
   resize();
   window.addEventListener('resize', resize);
