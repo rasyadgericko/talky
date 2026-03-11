@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Talky — AI Speech-to-Text for Desktop | Start Free</title>
+  <meta name="description" content="AI-powered speech-to-text that works with any desktop app. Start free with local Whisper, or unlock everything with Pro. Runs on macOS and Windows." />
+  <meta name="theme-color" content="#000000" />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="256x256" href="assets/webclip.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.png" />
+  <link rel="apple-touch-icon" href="assets/webclip.png" />
+  <link rel="canonical" href="https://talky.app" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Talky — AI Speech-to-Text for Desktop" />
+  <meta property="og:description" content="AI-powered speech-to-text that works with any desktop app. Start free with local Whisper, or unlock everything with Pro. macOS and Windows." />
+  <meta property="og:url" content="https://talky.app" />
+  <meta property="og:site_name" content="Talky" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:image" content="https://talky.app/assets/talky-og.webp" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Talky — AI Speech-to-Text for Desktop" />
+  <meta name="twitter:description" content="AI-powered speech-to-text that works with any desktop app. Start free, or unlock everything with Pro." />
+  <meta name="twitter:image" content="https://talky.app/assets/talky-og.webp" />
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Talky",
+    "description": "AI-powered speech-to-text desktop app that works with any application. Start free with local Whisper, or unlock everything with an affordable Pro plan.",
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "macOS, Windows",
+    "offers": [
+      { "@type": "Offer", "price": "0", "priceCurrency": "USD", "description": "Free — bundled local Whisper speech-to-text, English, 5K words/month" },
+      { "@type": "Offer", "price": "6", "priceCurrency": "USD", "description": "Pro — monthly subscription for unlimited words, 15+ languages, and AI transform" }
+    ]
+  }
+  </script>
+
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+
+  <!-- Cursor Spotlight -->
+  <div class="cursor-spotlight" id="spotlight" aria-hidden="true"></div>
+
+  <!-- Skip Navigation -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- Background Glow Orbs (decorative) -->
+  <div class="glow-orb glow-orb-1" aria-hidden="true" style="top:-200px;left:-200px;animation:drift 20s ease-in-out infinite"></div>
+  <div class="glow-orb glow-orb-2" aria-hidden="true" style="top:30%;right:-150px;animation:drift 25s ease-in-out infinite reverse"></div>
+  <div class="glow-orb glow-orb-1" aria-hidden="true" style="bottom:10%;left:20%;animation:drift 22s ease-in-out infinite 5s"></div>
+
+  <!-- ─── Nav ─── -->
+  <nav aria-label="Main navigation">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo" aria-label="Talky — Back to top">
+        <svg height="28" viewBox="0 0 121 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <g clip-path="url(#nav-clip)">
+            <rect y="3.5" width="32" height="32" rx="7.46356" fill="#010302"/>
+            <g filter="url(#nav-f0)">
+              <path d="M38.9971 7.93064C38.8079 11.3419 37.4719 16.4381 34.013 20.7375C30.5114 25.0899 24.8029 28.6381 16.0944 28.6887V28.6895C16.0629 28.6895 16.0315 28.6894 16 28.6893C15.9685 28.6894 15.9371 28.6895 15.9056 28.6895V28.6887C7.19708 28.6381 1.48863 25.0899 -2.01299 20.7375C-5.47193 16.4381 -6.8079 11.3419 -6.99709 7.93064L-3.22552 7.79156C-3.05882 10.7975 -1.85555 15.3209 1.14395 19.0492C4.08813 22.7088 8.72888 25.5866 16 25.6112C23.2711 25.5866 27.9119 22.7088 30.8561 19.0492C33.8555 15.3209 35.0588 10.7975 35.2255 7.79156L38.9971 7.93064Z" fill="white"/>
+            </g>
+            <g filter="url(#nav-f1)">
+              <circle cx="16.0466" cy="14.0423" r="4.19825" fill="white"/>
+            </g>
+          </g>
+          <path d="M41.1364 11.7841V7.72727H60.25V11.7841H53.125V31H48.2614V11.7841H41.1364ZM64.9491 31.3295C63.8355 31.3295 62.843 31.1364 61.9718 30.75C61.1006 30.3561 60.4112 29.7765 59.9036 29.0114C59.4036 28.2386 59.1536 27.2765 59.1536 26.125C59.1536 25.1553 59.3317 24.3409 59.6877 23.6818C60.0438 23.0227 60.5286 22.4924 61.1423 22.0909C61.7559 21.6894 62.4529 21.3864 63.2332 21.1818C64.0211 20.9773 64.8468 20.8333 65.7105 20.75C66.7256 20.6439 67.5438 20.5455 68.165 20.4545C68.7862 20.3561 69.237 20.2121 69.5173 20.0227C69.7976 19.8333 69.9377 19.553 69.9377 19.1818V19.1136C69.9377 18.3939 69.7105 17.8371 69.2559 17.4432C68.8089 17.0492 68.1726 16.8523 67.3468 16.8523C66.4756 16.8523 65.7824 17.0455 65.2673 17.4318C64.7521 17.8106 64.4112 18.2879 64.2445 18.8636L59.7673 18.5C59.9945 17.4394 60.4415 16.5227 61.1082 15.75C61.7748 14.9697 62.6347 14.3712 63.6877 13.9545C64.7483 13.5303 65.9756 13.3182 67.3695 13.3182C68.3392 13.3182 69.2673 13.4318 70.1536 13.6591C71.0476 13.8864 71.8392 14.2386 72.5286 14.7159C73.2256 15.1932 73.7748 15.8068 74.1764 16.5568C74.5779 17.2992 74.7786 18.1894 74.7786 19.2273V31H70.1877V28.5795H70.0514C69.7711 29.125 69.3961 29.6061 68.9264 30.0227C68.4567 30.4318 67.8923 30.7538 67.2332 30.9886C66.5741 31.2159 65.8127 31.3295 64.9491 31.3295ZM66.3355 27.9886C67.0476 27.9886 67.6764 27.8485 68.2218 27.5682C68.7673 27.2803 69.1953 26.8939 69.5059 26.4091C69.8165 25.9242 69.9718 25.375 69.9718 24.7614V22.9091C69.8203 23.0076 69.612 23.0985 69.3468 23.1818C69.0892 23.2576 68.7976 23.3295 68.4718 23.3977C68.1461 23.4583 67.8203 23.5152 67.4945 23.5682C67.1688 23.6136 66.8733 23.6553 66.6082 23.6932C66.04 23.7765 65.5438 23.9091 65.1195 24.0909C64.6953 24.2727 64.3658 24.5189 64.1309 24.8295C63.8961 25.1326 63.7786 25.5114 63.7786 25.9659C63.7786 26.625 64.0173 27.1288 64.4945 27.4773C64.9794 27.8182 65.593 27.9886 66.3355 27.9886ZM82.4152 7.72727V31H77.5743V7.72727H82.4152ZM89.7194 25.9773L89.7308 20.1705H90.4353L96.0262 13.5455H101.583L94.0717 22.3182H92.924L89.7194 25.9773ZM85.3331 31V7.72727H90.174V31H85.3331ZM96.2422 31L91.1058 23.3977L94.3331 19.9773L101.913 31H96.2422ZM106.268 37.5455C105.654 37.5455 105.079 37.4962 104.541 37.3977C104.01 37.3068 103.571 37.1894 103.222 37.0455L104.313 33.4318C104.882 33.6061 105.393 33.7008 105.847 33.7159C106.31 33.7311 106.707 33.625 107.041 33.3977C107.382 33.1705 107.658 32.7841 107.87 32.2386L108.154 31.5L101.893 13.5455H106.984L110.597 26.3636H110.779L114.427 13.5455H119.552L112.768 32.8864C112.442 33.8258 111.999 34.6439 111.438 35.3409C110.885 36.0455 110.185 36.5871 109.336 36.9659C108.488 37.3523 107.465 37.5455 106.268 37.5455Z" fill="white"/>
+          <defs>
+            <filter id="nav-f0" x="-6.99709" y="7.79156" width="45.9942" height="21.2711" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset dy="0.373178"/><feGaussianBlur stdDeviation="0.932945"/><feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.45 0"/><feBlend mode="normal" in2="shape" result="effect1_innerShadow_12_38"/></filter>
+            <filter id="nav-f1" x="11.8484" y="9.84406" width="8.3965" height="8.76966" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset dy="0.373178"/><feGaussianBlur stdDeviation="0.932945"/><feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.75 0"/><feBlend mode="normal" in2="shape" result="effect1_innerShadow_12_38"/></filter>
+            <clipPath id="nav-clip"><rect y="3.5" width="32" height="32" rx="7.46356" fill="white"/></clipPath>
+          </defs>
+        </svg>
+      </a>
+      <div class="nav-links" role="list">
+        <a href="#features" role="listitem">Features</a>
+        <a href="#how-it-works" role="listitem">How It Works</a>
+        <a href="#pricing" role="listitem">Pricing</a>
+        <a href="#faq" role="listitem">FAQ</a>
+      </div>
+      <div class="nav-auth" id="nav-auth-logged-out">
+        <a href="#" class="nav-btn nav-btn-ghost" onclick="openAuthModal('signin')">Sign In</a>
+        <a href="#" class="nav-btn" onclick="openAuthModal('signup')">Create Account</a>
+      </div>
+      <div class="nav-auth" id="nav-auth-logged-in" style="display:none;">
+        <a href="#" class="nav-btn" onclick="handleDownload(event)">Download</a>
+        <a href="#" class="nav-btn nav-btn-ghost" onclick="handleSignOut(event)">Sign Out</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ─── Hero ─── -->
+  <main id="main-content">
+  <section class="hero">
+    <canvas class="hero-particles" id="hero-particles" aria-hidden="true"></canvas>
+    <div class="hero-content">
+
+      <!-- Left: text -->
+      <div class="hero-text">
+        <div class="anim-fade-up">
+          <p class="hero-tag">AI speech-to-text for desktop — free to start</p>
+        </div>
+        <h1 class="anim-d1">Talk.<br>It types.</h1>
+        <p class="hero-sub anim-d2">
+          AI-powered dictation that works with every app on your desktop.
+          Start free with local Whisper — upgrade anytime for more languages and AI features.
+        </p>
+        <div class="hero-buttons anim-d3">
+          <a href="#" class="btn-primary" onclick="handleDownload(event)">Download Free</a>
+          <a href="#how-it-works" class="btn-secondary">How it works</a>
+        </div>
+        <div class="compat-line anim-d4">
+          <span>Free Plan</span><span>Pro from $6/mo</span><span>macOS</span><span>Windows</span><span>Any App</span><span>Offline</span>
+        </div>
+      </div>
+
+      <!-- Right: Display Cards -->
+      <div class="hero-visual anim-d4" aria-hidden="true">
+        <div class="display-cards">
+
+          <!-- Card 1 — back (Translate) -->
+          <div class="display-card display-card-1">
+            <div class="dc-top">
+              <span class="dc-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              </span>
+              <span class="dc-title">Translate</span>
+            </div>
+            <p class="dc-desc">メールをありがとうございます...</p>
+            <p class="dc-date">5 mins ago</p>
+          </div>
+
+          <!-- Card 2 — middle (AI Transform) -->
+          <div class="display-card display-card-2">
+            <div class="dc-top">
+              <span class="dc-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.912 5.813a2 2 0 001.272 1.272L21 12l-5.813 1.912a2 2 0 00-1.272 1.272L12 21l-1.912-5.813a2 2 0 00-1.272-1.272L3 12l5.813-1.912a2 2 0 001.272-1.272L12 3z"/></svg>
+              </span>
+              <span class="dc-title">AI Transform</span>
+            </div>
+            <p class="dc-desc">Rewrote draft email to professional tone</p>
+            <p class="dc-date">2 mins ago</p>
+          </div>
+
+          <!-- Card 3 — front (Dictate) -->
+          <div class="display-card display-card-3">
+            <div class="dc-top">
+              <span class="dc-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+              </span>
+              <span class="dc-title">Dictate</span>
+            </div>
+            <p class="dc-desc">Send the quarterly report to Sarah by end of day</p>
+            <p class="dc-date">Just now</p>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─── Works With ─── -->
+  <section class="integrations-section" aria-label="Works with your favorite apps">
+    <div class="integrations-inner">
+      <p class="integrations-label">Works with every app</p>
+      <div class="integrations-track-wrap" role="marquee" aria-label="App logos: Slack, VS Code, Cursor, Notion, Google Docs, ChatGPT, Claude, Figma, Discord, Gmail, iCloud">
+        <div class="integrations-fade integrations-fade-left" aria-hidden="true"></div>
+        <div class="integrations-fade integrations-fade-right" aria-hidden="true"></div>
+        <div class="integrations-track" aria-hidden="true">
+          <div class="int-item"><img class="int-logo" src="assets/logos/slack.svg" alt="Slack"><span class="int-name">Slack</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/vscode.svg" alt="VS Code"><span class="int-name">VS Code</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/cursor.svg" alt="Cursor"><span class="int-name">Cursor</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/notion.svg" alt="Notion"><span class="int-name">Notion</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/googledocs.svg" alt="Google Docs"><span class="int-name">Google Docs</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/chatgpt.svg" alt="ChatGPT"><span class="int-name">ChatGPT</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/claude.svg" alt="Claude"><span class="int-name">Claude</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/figma.svg" alt="Figma"><span class="int-name">Figma</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/discord.svg" alt="Discord"><span class="int-name">Discord</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/gmail.svg" alt="Gmail"><span class="int-name">Gmail</span></div>
+          <!-- Duplicate set for seamless loop -->
+          <div class="int-item"><img class="int-logo" src="assets/logos/slack.svg" alt="Slack"><span class="int-name">Slack</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/vscode.svg" alt="VS Code"><span class="int-name">VS Code</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/cursor.svg" alt="Cursor"><span class="int-name">Cursor</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/notion.svg" alt="Notion"><span class="int-name">Notion</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/googledocs.svg" alt="Google Docs"><span class="int-name">Google Docs</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/chatgpt.svg" alt="ChatGPT"><span class="int-name">ChatGPT</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/claude.svg" alt="Claude"><span class="int-name">Claude</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/figma.svg" alt="Figma"><span class="int-name">Figma</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/discord.svg" alt="Discord"><span class="int-name">Discord</span></div>
+          <div class="int-item"><img class="int-logo" src="assets/logos/gmail.svg" alt="Gmail"><span class="int-name">Gmail</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ─── Features ─── -->
+  <section id="features" class="section">
+    <div class="section-inner">
+      <div class="reveal" style="margin-bottom:32px">
+        <p class="section-tag">Features</p>
+        <h2 class="section-title-lg">Everything you need.<br>Nothing you don't.</h2>
+      </div>
+
+      <div class="bento-grid">
+        <!-- Privacy First -->
+        <div class="bento-span-7 reveal">
+          <div class="bento-card">
+            <div>
+              <div class="bento-header">
+                <span class="bento-detail">Local-only processing</span>
+                <div class="bento-icon" aria-hidden="true">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <path d="M9 12l2 2 4-4"/>
+                  </svg>
+                </div>
+              </div>
+              <h3>Privacy First</h3>
+            </div>
+            <p>Whisper runs entirely on your device — bundled in the app, no setup required. No cloud, no data collection, no account. Your voice never leaves your machine.</p>
+          </div>
+        </div>
+
+        <!-- Works Everywhere -->
+        <div class="bento-span-5 reveal" style="transition-delay:0.06s">
+          <div class="bento-card">
+            <div>
+              <div class="bento-header">
+                <span class="bento-detail">Universal input</span>
+                <div class="bento-icon" aria-hidden="true">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                    <line x1="8" x2="16" y1="21" y2="21"/>
+                    <line x1="12" x2="12" y1="17" y2="21"/>
+                    <path d="M6 8h4M6 11h8"/>
+                  </svg>
+                </div>
+              </div>
+              <h3>Works Everywhere</h3>
+            </div>
+            <p>Types directly into any app with focus — email, Slack, VS Code, browser. No plugins required.</p>
+          </div>
+        </div>
+
+        <!-- AI Transform -->
+        <div class="bento-span-5 reveal" style="transition-delay:0.12s">
+          <div class="bento-card">
+            <div>
+              <div class="bento-header">
+                <span class="bento-detail">Voice-driven editing</span>
+                <div class="bento-icon" aria-hidden="true">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8L19 13M17.8 6.2L19 5M12.2 11.8L11 13M12.2 6.2L11 5"/>
+                    <path d="M3 21l9-9"/>
+                  </svg>
+                </div>
+              </div>
+              <h3>AI Transform</h3>
+            </div>
+            <p>Select text, press Ctrl+I, speak: rewrite, summarize, translate, fix grammar. AI transforms in-place — available with Pro.</p>
+          </div>
+        </div>
+
+        <!-- 15+ Languages -->
+        <div class="bento-span-7 reveal" style="transition-delay:0.18s">
+          <div class="bento-card">
+            <div>
+              <div class="bento-header">
+                <span class="bento-detail">Global support</span>
+                <div class="bento-icon" aria-hidden="true">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="2" x2="22" y1="12" y2="12"/>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                  </svg>
+                </div>
+              </div>
+              <h3>15+ Languages</h3>
+            </div>
+            <p>English, Japanese, Korean, Chinese, Indonesian, Spanish, French, German, and more. Whisper handles them natively — available with Pro.</p>
+          </div>
+        </div>
+
+        <!-- Wake Word -->
+        <div class="bento-span-4 reveal" style="transition-delay:0.24s">
+          <div class="bento-card">
+            <div>
+              <div class="bento-header">
+                <span class="bento-detail">Hands-free</span>
+                <div class="bento-icon" aria-hidden="true">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" x2="12" y1="19" y2="23"/>
+                    <line x1="8" x2="16" y1="23" y2="23"/>
+                  </svg>
+                </div>
+              </div>
+              <h3>Wake Word</h3>
+            </div>
+            <p>Say "Hey Talky" to activate — no hotkey needed. Powered by Picovoice Porcupine.</p>
+          </div>
+        </div>
+
+        <!-- Prompt Templates -->
+        <div class="bento-span-4 reveal" style="transition-delay:0.3s">
+          <div class="bento-card">
+            <div>
+              <div class="bento-header">
+                <span class="bento-detail">Customizable</span>
+                <div class="bento-icon" aria-hidden="true">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                  </svg>
+                </div>
+              </div>
+              <h3>Custom Templates</h3>
+            </div>
+            <p>Create reusable prompt templates for your common transforms — emails, code reviews, translations.</p>
+          </div>
+        </div>
+
+        <!-- Transcript History -->
+        <div class="bento-span-4 reveal" style="transition-delay:0.36s">
+          <div class="bento-card">
+            <div>
+              <div class="bento-header">
+                <span class="bento-detail">Searchable</span>
+                <div class="bento-icon" aria-hidden="true">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" x2="16.65" y1="21" y2="16.65"/>
+                    <path d="M8 11h6M11 8v6"/>
+                  </svg>
+                </div>
+              </div>
+              <h3>History &amp; Search</h3>
+            </div>
+            <p>Every transcription is saved locally. Search, copy, or re-use any past dictation instantly. Available with Pro.</p>
+          </div>
+        </div>
+
+        <!-- Multi-turn Conversation -->
+        <div class="bento-span-6 reveal" style="transition-delay:0.42s">
+          <div class="bento-card">
+            <div>
+              <div class="bento-header">
+                <span class="bento-detail">Contextual AI</span>
+                <div class="bento-icon" aria-hidden="true">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    <path d="M8 9h8M8 13h4"/>
+                  </svg>
+                </div>
+              </div>
+              <h3>Multi-turn Conversation</h3>
+            </div>
+            <p>AI remembers up to 5 turns of context. Iterate on transforms without repeating yourself — "make it shorter", "now more formal".</p>
+          </div>
+        </div>
+
+        <!-- Cross Platform -->
+        <div class="bento-span-6 reveal" style="transition-delay:0.48s">
+          <div class="bento-card">
+            <div>
+              <div class="bento-header">
+                <span class="bento-detail">macOS &amp; Windows</span>
+                <div class="bento-icon" aria-hidden="true">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                    <line x1="8" x2="16" y1="21" y2="21"/>
+                    <line x1="12" x2="12" y1="17" y2="21"/>
+                  </svg>
+                </div>
+              </div>
+              <h3>Cross Platform</h3>
+            </div>
+            <p>Native performance on Apple Silicon, Intel Macs, and Windows 10/11. Same free experience, every platform.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ─── Animated Beam — Works Everywhere ─── -->
+  <section class="section">
+    <div class="section-inner">
+      <div class="reveal" style="text-align:center; margin-bottom:56px">
+        <p class="section-tag">Universal</p>
+        <h2 class="section-title-lg">Works with<br>every app.</h2>
+        <p style="font-size:14px; color:rgba(255,255,255,0.45); margin-top:12px; max-width:448px; margin-left:auto; margin-right:auto; line-height:1.6">Talky types directly into any text field — no plugins, no integrations required. Just press a hotkey and speak.</p>
+      </div>
+      <div class="beam-container reveal" id="beam-container">
+        <!-- Left nodes -->
+        <div class="beam-col" id="beam-col-left">
+          <div class="beam-node" id="bn1" title="Slack">
+            <img src="assets/logos/slack.svg" alt="Slack">
+          </div>
+          <div class="beam-node" id="bn2" title="VS Code">
+            <img src="assets/logos/vscode.svg" alt="VS Code">
+          </div>
+          <div class="beam-node" id="bn3" title="Notion">
+            <img src="assets/logos/notion.svg" alt="Notion">
+          </div>
+        </div>
+
+        <!-- Center node — Talky logo -->
+        <div class="beam-center-col">
+          <div class="beam-node beam-node-center" id="bn-center" title="Talky">
+            <svg height="22" viewBox="0 0 121 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g clip-path="url(#bc-clip)">
+                <rect y="3.5" width="32" height="32" rx="7.46356" fill="#010302"/>
+                <g filter="url(#bc-f0)">
+                  <path d="M38.9971 7.93064C38.8079 11.3419 37.4719 16.4381 34.013 20.7375C30.5114 25.0899 24.8029 28.6381 16.0944 28.6887V28.6895C16.0629 28.6895 16.0315 28.6894 16 28.6893C15.9685 28.6894 15.9371 28.6895 15.9056 28.6895V28.6887C7.19708 28.6381 1.48863 25.0899 -2.01299 20.7375C-5.47193 16.4381 -6.8079 11.3419 -6.99709 7.93064L-3.22552 7.79156C-3.05882 10.7975 -1.85555 15.3209 1.14395 19.0492C4.08813 22.7088 8.72888 25.5866 16 25.6112C23.2711 25.5866 27.9119 22.7088 30.8561 19.0492C33.8555 15.3209 35.0588 10.7975 35.2255 7.79156L38.9971 7.93064Z" fill="white"/>
+                </g>
+                <g filter="url(#bc-f1)">
+                  <circle cx="16.0466" cy="14.0423" r="4.19825" fill="white"/>
+                </g>
+              </g>
+              <path d="M41.1364 11.7841V7.72727H60.25V11.7841H53.125V31H48.2614V11.7841H41.1364ZM64.9491 31.3295C63.8355 31.3295 62.843 31.1364 61.9718 30.75C61.1006 30.3561 60.4112 29.7765 59.9036 29.0114C59.4036 28.2386 59.1536 27.2765 59.1536 26.125C59.1536 25.1553 59.3317 24.3409 59.6877 23.6818C60.0438 23.0227 60.5286 22.4924 61.1423 22.0909C61.7559 21.6894 62.4529 21.3864 63.2332 21.1818C64.0211 20.9773 64.8468 20.8333 65.7105 20.75C66.7256 20.6439 67.5438 20.5455 68.165 20.4545C68.7862 20.3561 69.237 20.2121 69.5173 20.0227C69.7976 19.8333 69.9377 19.553 69.9377 19.1818V19.1136C69.9377 18.3939 69.7105 17.8371 69.2559 17.4432C68.8089 17.0492 68.1726 16.8523 67.3468 16.8523C66.4756 16.8523 65.7824 17.0455 65.2673 17.4318C64.7521 17.8106 64.4112 18.2879 64.2445 18.8636L59.7673 18.5C59.9945 17.4394 60.4415 16.5227 61.1082 15.75C61.7748 14.9697 62.6347 14.3712 63.6877 13.9545C64.7483 13.5303 65.9756 13.3182 67.3695 13.3182C68.3392 13.3182 69.2673 13.4318 70.1536 13.6591C71.0476 13.8864 71.8392 14.2386 72.5286 14.7159C73.2256 15.1932 73.7748 15.8068 74.1764 16.5568C74.5779 17.2992 74.7786 18.1894 74.7786 19.2273V31H70.1877V28.5795H70.0514C69.7711 29.125 69.3961 29.6061 68.9264 30.0227C68.4567 30.4318 67.8923 30.7538 67.2332 30.9886C66.5741 31.2159 65.8127 31.3295 64.9491 31.3295ZM66.3355 27.9886C67.0476 27.9886 67.6764 27.8485 68.2218 27.5682C68.7673 27.2803 69.1953 26.8939 69.5059 26.4091C69.8165 25.9242 69.9718 25.375 69.9718 24.7614V22.9091C69.8203 23.0076 69.612 23.0985 69.3468 23.1818C69.0892 23.2576 68.7976 23.3295 68.4718 23.3977C68.1461 23.4583 67.8203 23.5152 67.4945 23.5682C67.1688 23.6136 66.8733 23.6553 66.6082 23.6932C66.04 23.7765 65.5438 23.9091 65.1195 24.0909C64.6953 24.2727 64.3658 24.5189 64.1309 24.8295C63.8961 25.1326 63.7786 25.5114 63.7786 25.9659C63.7786 26.625 64.0173 27.1288 64.4945 27.4773C64.9794 27.8182 65.593 27.9886 66.3355 27.9886ZM82.4152 7.72727V31H77.5743V7.72727H82.4152ZM89.7194 25.9773L89.7308 20.1705H90.4353L96.0262 13.5455H101.583L94.0717 22.3182H92.924L89.7194 25.9773ZM85.3331 31V7.72727H90.174V31H85.3331ZM96.2422 31L91.1058 23.3977L94.3331 19.9773L101.913 31H96.2422ZM106.268 37.5455C105.654 37.5455 105.079 37.4962 104.541 37.3977C104.01 37.3068 103.571 37.1894 103.222 37.0455L104.313 33.4318C104.882 33.6061 105.393 33.7008 105.847 33.7159C106.31 33.7311 106.707 33.625 107.041 33.3977C107.382 33.1705 107.658 32.7841 107.87 32.2386L108.154 31.5L101.893 13.5455H106.984L110.597 26.3636H110.779L114.427 13.5455H119.552L112.768 32.8864C112.442 33.8258 111.999 34.6439 111.438 35.3409C110.885 36.0455 110.185 36.5871 109.336 36.9659C108.488 37.3523 107.465 37.5455 106.268 37.5455Z" fill="white"/>
+              <defs>
+                <filter id="bc-f0" x="-6.99709" y="7.79156" width="45.9942" height="21.2711" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset dy="0.373178"/><feGaussianBlur stdDeviation="0.932945"/><feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.45 0"/><feBlend mode="normal" in2="shape" result="effect1_innerShadow_12_38"/></filter>
+                <filter id="bc-f1" x="11.8484" y="9.84406" width="8.3965" height="8.76966" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset dy="0.373178"/><feGaussianBlur stdDeviation="0.932945"/><feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.75 0"/><feBlend mode="normal" in2="shape" result="effect1_innerShadow_12_38"/></filter>
+                <clipPath id="bc-clip"><rect y="3.5" width="32" height="32" rx="7.46356" fill="white"/></clipPath>
+              </defs>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Right nodes -->
+        <div class="beam-col" id="beam-col-right">
+          <div class="beam-node" id="bn4" title="Gmail">
+            <img src="assets/logos/gmail.svg" alt="Gmail">
+          </div>
+          <div class="beam-node" id="bn5" title="ChatGPT">
+            <img src="assets/logos/chatgpt.svg" alt="ChatGPT">
+          </div>
+          <div class="beam-node" id="bn6" title="Discord">
+            <img src="assets/logos/discord.svg" alt="Discord">
+          </div>
+        </div>
+
+        <!-- SVG beam overlay (filled by JS) -->
+        <svg class="beam-svg" id="beam-svg" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ─── How It Works ─── -->
+  <section id="how-it-works" class="section">
+    <div class="section-inner">
+      <div class="hiw-grid">
+        <div>
+          <div class="hiw-left-sticky reveal">
+            <p class="section-tag">How It Works</p>
+            <h2 class="section-title-lg">Three<br>seconds.</h2>
+            <p class="hiw-sub">No setup required. Press a hotkey, speak, text appears in your active app. Free to start.</p>
+          </div>
+        </div>
+        <div>
+          <div class="timeline" id="timeline">
+            <div class="timeline-line">
+              <div class="timeline-glow" id="timeline-glow"></div>
+              <div class="timeline-glow-halo" id="timeline-halo" style="opacity:0"></div>
+            </div>
+            <div class="timeline-steps">
+              <div class="timeline-step reveal">
+                <div class="timeline-dot"><div class="timeline-dot-inner"></div></div>
+                <div class="timeline-meta">
+                  <span class="timeline-num">01</span>
+                  <kbd class="timeline-kbd">Alt + Space</kbd>
+                </div>
+                <h3>Activate</h3>
+                <p>Press the hotkey from anywhere on your desktop. A minimal floating island appears at the top of your screen.</p>
+              </div>
+              <div class="timeline-step reveal">
+                <div class="timeline-dot"><div class="timeline-dot-inner"></div></div>
+                <div class="timeline-meta">
+                  <span class="timeline-num">02</span>
+                  <kbd class="timeline-kbd">Speak naturally</kbd>
+                </div>
+                <h3>Dictate</h3>
+                <p>Talk as you normally would. Whisper transcribes with auto-punctuation — no "period" or "comma" commands needed.</p>
+              </div>
+              <div class="timeline-step reveal">
+                <div class="timeline-dot"><div class="timeline-dot-inner"></div></div>
+                <div class="timeline-meta">
+                  <span class="timeline-num">03</span>
+                  <kbd class="timeline-kbd">Automatic</kbd>
+                </div>
+                <h3>Paste</h3>
+                <p>Text is typed directly into your active application the moment you stop. No copy-paste, no switching windows.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Demo -->
+      <div class="hiw-demo reveal">
+        <p class="hiw-demo-label">Try it live</p>
+        <div class="demo-wrap">
+          <div class="demo-box" id="demo-box" onclick="toggleDemo()" role="button" tabindex="0" aria-label="Click to simulate dictation demo" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDemo();}">
+            <div class="demo-top">
+              <div class="demo-top-left">
+                <div class="demo-mic idle" id="demo-mic">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" x2="12" y1="19" y2="22"/>
+                  </svg>
+                </div>
+                <span class="demo-status" id="demo-status">Talky Island</span>
+              </div>
+              <div class="demo-waveform" id="demo-waveform"></div>
+            </div>
+            <div class="demo-output closed" id="demo-output">
+              <div class="demo-output-inner">
+                <span class="demo-text" id="demo-text"></span>
+                <span class="demo-cursor"></span>
+              </div>
+            </div>
+          </div>
+          <p class="demo-hint" id="demo-hint">click to simulate</p>
+        </div>
+      </div>
+
+      <!-- Transform Mode -->
+      <div class="transform-section">
+        <div class="reveal">
+          <p class="section-tag">Transform Mode</p>
+          <h3 class="section-title">Edit text with your voice</h3>
+          <p class="transform-sub">
+            Select text, press <kbd>Ctrl+I</kbd>, speak your instruction. AI transforms the selection in-place.
+          </p>
+        </div>
+        <div class="reveal">
+          <div class="transform-grid" id="transform-grid">
+            <div class="mode-buttons" id="mode-buttons"></div>
+            <div>
+              <div class="io-card" id="io-input">
+                <div class="io-label">
+                  <div class="io-dot" style="background:rgba(255,255,255,0.35)"></div>
+                  <span class="io-tag" style="color:rgba(255,255,255,0.45)">Input</span>
+                </div>
+                <p class="io-text" style="color:rgba(255,255,255,0.5)" id="io-input-text"></p>
+              </div>
+              <div class="io-arrow">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+              </div>
+              <div class="io-card output" id="io-output">
+                <div class="io-label">
+                  <div class="io-dot" style="background:rgba(50,28,214,0.5)"></div>
+                  <span class="io-tag" style="color:rgba(50,28,214,0.5)">Output</span>
+                  <span class="io-badge" id="io-badge"></span>
+                </div>
+                <p class="io-text" style="color:rgba(255,255,255,0.6)" id="io-output-text"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ─── Pricing ─── -->
+  <section id="pricing" class="section">
+    <div class="section-inner">
+      <div class="pricing-header reveal">
+        <p class="section-tag">Pricing</p>
+        <h2 class="section-title-lg">Simple pricing.</h2>
+        <p>Start free with local Whisper dictation. Need more? Pro unlocks unlimited words, 15+ languages, and AI features — for less than you'd expect.</p>
+      </div>
+
+      <div class="pricing-grid reveal">
+        <!-- Free -->
+        <div class="pricing-card free">
+          <p class="pricing-tier">Free</p>
+          <div class="pricing-price"><span>$0</span><span>/ forever</span></div>
+          <div class="pricing-features" id="pricing-free-features"></div>
+          <a href="#" class="pricing-cta" onclick="handleDownload(event)">Download Free</a>
+        </div>
+
+        <!-- Pro -->
+        <div class="pricing-card pro">
+          <div class="pricing-badge">Most Popular</div>
+          <p class="pricing-tier">Pro</p>
+          <div class="pricing-price"><span>$6</span><span>/ month</span></div>
+          <div class="pricing-features" id="pricing-pro-features"></div>
+          <a href="#download" class="pricing-cta">Upgrade to Pro</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ─── FAQ ─── -->
+  <section id="faq" class="section">
+    <div class="section-inner">
+      <div class="faq-grid">
+        <div class="reveal">
+          <p class="section-tag">FAQ</p>
+          <h2 class="section-title">Questions<br>&amp; Answers</h2>
+        </div>
+        <div class="reveal" id="faq-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ─── Download CTA ─── -->
+  <section id="download" class="cta">
+    <canvas class="cta-particles" id="cta-particles" aria-hidden="true"></canvas>
+    <div aria-hidden="true" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(50,28,214,0.06) 0%,transparent 70%);pointer-events:none;filter:blur(60px);animation:breathe 4s ease-in-out infinite"></div>
+    <div class="cta-inner reveal">
+      <h2>Type at the speed<br>of thought.</h2>
+      <p class="cta-sub">Free to start. Upgrade when you're ready. No commitment.</p>
+      <div class="cta-buttons">
+        <a href="#" class="btn-primary" aria-label="Download Talky for macOS" onclick="handleDownload(event)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          Download for macOS
+        </a>
+        <a href="https://github.com/rasyadgericko/talky/releases" class="btn-secondary" aria-label="View all releases on GitHub">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="opacity:0.5" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          All Releases
+        </a>
+      </div>
+      <p class="cta-version">v0.2.0 · Apple Silicon · macOS 13+</p>
+    </div>
+  </section>
+
+  </main>
+
+  <!-- ─── Footer ─── -->
+  <footer>
+    <div class="footer-inner">
+      <span class="footer-logo">
+        <svg height="22" viewBox="0 0 121 39" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity:0.4">
+          <g clip-path="url(#foot-clip)">
+            <rect y="3.5" width="32" height="32" rx="7.46356" fill="#010302"/>
+            <g filter="url(#foot-f0)">
+              <path d="M38.9971 7.93064C38.8079 11.3419 37.4719 16.4381 34.013 20.7375C30.5114 25.0899 24.8029 28.6381 16.0944 28.6887V28.6895C16.0629 28.6895 16.0315 28.6894 16 28.6893C15.9685 28.6894 15.9371 28.6895 15.9056 28.6895V28.6887C7.19708 28.6381 1.48863 25.0899 -2.01299 20.7375C-5.47193 16.4381 -6.8079 11.3419 -6.99709 7.93064L-3.22552 7.79156C-3.05882 10.7975 -1.85555 15.3209 1.14395 19.0492C4.08813 22.7088 8.72888 25.5866 16 25.6112C23.2711 25.5866 27.9119 22.7088 30.8561 19.0492C33.8555 15.3209 35.0588 10.7975 35.2255 7.79156L38.9971 7.93064Z" fill="white"/>
+            </g>
+            <g filter="url(#foot-f1)">
+              <circle cx="16.0466" cy="14.0423" r="4.19825" fill="white"/>
+            </g>
+          </g>
+          <path d="M41.1364 11.7841V7.72727H60.25V11.7841H53.125V31H48.2614V11.7841H41.1364ZM64.9491 31.3295C63.8355 31.3295 62.843 31.1364 61.9718 30.75C61.1006 30.3561 60.4112 29.7765 59.9036 29.0114C59.4036 28.2386 59.1536 27.2765 59.1536 26.125C59.1536 25.1553 59.3317 24.3409 59.6877 23.6818C60.0438 23.0227 60.5286 22.4924 61.1423 22.0909C61.7559 21.6894 62.4529 21.3864 63.2332 21.1818C64.0211 20.9773 64.8468 20.8333 65.7105 20.75C66.7256 20.6439 67.5438 20.5455 68.165 20.4545C68.7862 20.3561 69.237 20.2121 69.5173 20.0227C69.7976 19.8333 69.9377 19.553 69.9377 19.1818V19.1136C69.9377 18.3939 69.7105 17.8371 69.2559 17.4432C68.8089 17.0492 68.1726 16.8523 67.3468 16.8523C66.4756 16.8523 65.7824 17.0455 65.2673 17.4318C64.7521 17.8106 64.4112 18.2879 64.2445 18.8636L59.7673 18.5C59.9945 17.4394 60.4415 16.5227 61.1082 15.75C61.7748 14.9697 62.6347 14.3712 63.6877 13.9545C64.7483 13.5303 65.9756 13.3182 67.3695 13.3182C68.3392 13.3182 69.2673 13.4318 70.1536 13.6591C71.0476 13.8864 71.8392 14.2386 72.5286 14.7159C73.2256 15.1932 73.7748 15.8068 74.1764 16.5568C74.5779 17.2992 74.7786 18.1894 74.7786 19.2273V31H70.1877V28.5795H70.0514C69.7711 29.125 69.3961 29.6061 68.9264 30.0227C68.4567 30.4318 67.8923 30.7538 67.2332 30.9886C66.5741 31.2159 65.8127 31.3295 64.9491 31.3295ZM66.3355 27.9886C67.0476 27.9886 67.6764 27.8485 68.2218 27.5682C68.7673 27.2803 69.1953 26.8939 69.5059 26.4091C69.8165 25.9242 69.9718 25.375 69.9718 24.7614V22.9091C69.8203 23.0076 69.612 23.0985 69.3468 23.1818C69.0892 23.2576 68.7976 23.3295 68.4718 23.3977C68.1461 23.4583 67.8203 23.5152 67.4945 23.5682C67.1688 23.6136 66.8733 23.6553 66.6082 23.6932C66.04 23.7765 65.5438 23.9091 65.1195 24.0909C64.6953 24.2727 64.3658 24.5189 64.1309 24.8295C63.8961 25.1326 63.7786 25.5114 63.7786 25.9659C63.7786 26.625 64.0173 27.1288 64.4945 27.4773C64.9794 27.8182 65.593 27.9886 66.3355 27.9886ZM82.4152 7.72727V31H77.5743V7.72727H82.4152ZM89.7194 25.9773L89.7308 20.1705H90.4353L96.0262 13.5455H101.583L94.0717 22.3182H92.924L89.7194 25.9773ZM85.3331 31V7.72727H90.174V31H85.3331ZM96.2422 31L91.1058 23.3977L94.3331 19.9773L101.913 31H96.2422ZM106.268 37.5455C105.654 37.5455 105.079 37.4962 104.541 37.3977C104.01 37.3068 103.571 37.1894 103.222 37.0455L104.313 33.4318C104.882 33.6061 105.393 33.7008 105.847 33.7159C106.31 33.7311 106.707 33.625 107.041 33.3977C107.382 33.1705 107.658 32.7841 107.87 32.2386L108.154 31.5L101.893 13.5455H106.984L110.597 26.3636H110.779L114.427 13.5455H119.552L112.768 32.8864C112.442 33.8258 111.999 34.6439 111.438 35.3409C110.885 36.0455 110.185 36.5871 109.336 36.9659C108.488 37.3523 107.465 37.5455 106.268 37.5455Z" fill="white"/>
+          <defs>
+            <filter id="foot-f0" x="-6.99709" y="7.79156" width="45.9942" height="21.2711" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset dy="0.373178"/><feGaussianBlur stdDeviation="0.932945"/><feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.45 0"/><feBlend mode="normal" in2="shape" result="effect1_innerShadow_12_38"/></filter>
+            <filter id="foot-f1" x="11.8484" y="9.84406" width="8.3965" height="8.76966" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset dy="0.373178"/><feGaussianBlur stdDeviation="0.932945"/><feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.75 0"/><feBlend mode="normal" in2="shape" result="effect1_innerShadow_12_38"/></filter>
+            <clipPath id="foot-clip"><rect y="3.5" width="32" height="32" rx="7.46356" fill="white"/></clipPath>
+          </defs>
+        </svg>
+      </span>
+      <div class="footer-links" role="navigation" aria-label="Footer navigation">
+        <a href="https://github.com/rasyadgericko/talky">GitHub</a>
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+      </div>
+      <p class="footer-copy">&copy; 2026 Talky &middot; Built by <a href="https://rycworks.com" target="_blank" rel="noopener">RYC</a></p>
+    </div>
+  </footer>
+
+  <!-- ─── Auth Modal ─── -->
+  <div class="auth-overlay" id="auth-overlay" aria-hidden="true">
+    <div class="auth-modal" role="dialog" aria-labelledby="auth-title">
+      <button class="auth-close" id="auth-close" aria-label="Close">&times;</button>
+      <h2 id="auth-title" class="auth-heading">Create your account</h2>
+      <p class="auth-subtitle" id="auth-subtitle">Sign up to download Talky for free.</p>
+
+      <div class="auth-social">
+        <button class="auth-social-btn" id="auth-google">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          Continue with Google
+        </button>
+        <button class="auth-social-btn" id="auth-github">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          Continue with GitHub
+        </button>
+      </div>
+
+      <div class="auth-divider"><span>or</span></div>
+
+      <form id="auth-form" autocomplete="on">
+        <div class="auth-field">
+          <label for="auth-email">Email</label>
+          <input type="email" id="auth-email" name="email" required autocomplete="email" placeholder="you@example.com" />
+        </div>
+        <div class="auth-field">
+          <label for="auth-password">Password</label>
+          <input type="password" id="auth-password" name="password" required autocomplete="current-password" minlength="6" placeholder="Min. 6 characters" />
+        </div>
+        <p class="auth-error" id="auth-error"></p>
+        <button type="submit" class="auth-submit" id="auth-submit">Create account</button>
+      </form>
+
+      <p class="auth-switch">
+        <span id="auth-switch-text">Already have an account?</span>
+        <button type="button" class="auth-switch-btn" id="auth-switch-btn">Sign in</button>
+      </p>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

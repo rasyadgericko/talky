@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to Talky — Download Your App</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.png" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    .ty-wrap {
+      min-height: 100vh; display: flex; align-items: center;
+      justify-content: center; padding: 24px; text-align: center;
+    }
+    .ty-inner { max-width: 480px; }
+    .ty-check {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: rgba(50,28,214,0.1); border: 2px solid rgba(50,28,214,0.3);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 32px;
+    }
+    .ty-check svg { color: #6C5CE7; }
+    .ty-title {
+      font-size: clamp(1.5rem, 4vw, 2.5rem); font-weight: 700;
+      letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 12px;
+    }
+    .ty-sub {
+      font-size: 14px; color: rgba(255,255,255,0.5);
+      line-height: 1.6; margin-bottom: 40px;
+    }
+    .ty-download {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 14px 32px; border-radius: 12px;
+      background: white; color: #0a0a0a; font-size: 15px; font-weight: 600;
+      text-decoration: none; transition: opacity 0.2s;
+    }
+    .ty-download:hover { opacity: 0.9; }
+    .ty-meta {
+      margin-top: 16px; font-size: 11px; color: rgba(255,255,255,0.35);
+      letter-spacing: 0.05em;
+    }
+    .ty-back {
+      margin-top: 48px; font-size: 12px;
+    }
+    .ty-back a {
+      color: rgba(255,255,255,0.4); text-decoration: underline;
+      text-underline-offset: 2px; transition: color 0.2s;
+    }
+    .ty-back a:hover { color: rgba(255,255,255,0.7); }
+  </style>
+</head>
+<body>
+  <div class="ty-wrap">
+    <div class="ty-inner">
+      <div class="ty-check">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+      </div>
+      <h1 class="ty-title">You're all set.</h1>
+      <p class="ty-sub">Thanks for signing up. Your download is ready.</p>
+      <a href="https://github.com/rasyadgericko/talky/releases/latest/download/Talky-0.2.0-arm64.dmg" class="ty-download" id="ty-download" download>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        Download for macOS
+      </a>
+      <p class="ty-meta">v0.2.0 · Apple Silicon · macOS 13+</p>
+      <p class="ty-back"><a href="index.html">Back to Talky</a></p>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      var SUPABASE_URL = 'https://hveankwjtfvcztcrurlm.supabase.co';
+      var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2ZWFua3dqdGZ2Y3p0Y3J1cmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNzExNTQsImV4cCI6MjA4ODY0NzE1NH0.fyfBlM_kknWTD6hI_hP7CYfjmYZXSZZc9I1cZRf6URE';
+      var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      // Track download when user clicks the download link
+      var dlBtn = document.getElementById('ty-download');
+      if (dlBtn) {
+        dlBtn.addEventListener('click', function() {
+          sb.auth.getSession().then(function(res) {
+            if (res.data.session) {
+              sb.from('downloads').insert({
+                user_id: res.data.session.user.id,
+                platform: 'macos',
+                version: '0.2.0'
+              }).then(function() {});
+            }
+          });
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
