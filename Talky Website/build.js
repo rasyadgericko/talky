@@ -26,7 +26,7 @@ async function build() {
 
   // Copy all files to dist
   for (const item of fs.readdirSync(__dirname)) {
-    if (['node_modules', 'dist', '.vercel', '.next', '.git', '.vscode', 'package.json', 'package-lock.json', 'build.js', 'vercel.json', '.gitignore'].includes(item)) continue;
+    if (['node_modules', 'dist', '.vercel', '.next', '.git', '.vscode', '.DS_Store', 'package.json', 'package-lock.json', 'build.js', 'vercel.json', '.gitignore'].includes(item)) continue;
     copyRecursive(path.join(__dirname, item), path.join(DIST, item));
   }
 
