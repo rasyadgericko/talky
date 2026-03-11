@@ -210,7 +210,7 @@ nav {
 }
 .nav-inner {
   padding: 0 20px;
-  height: 52px; display: flex; align-items: center; justify-content: space-between;
+  height: 52px; display: flex; align-items: center; gap: 32px;
 }
 .nav-logo { display: flex; align-items: center; }
 .nav-links { display: flex; align-items: center; gap: 32px; }
@@ -219,7 +219,7 @@ nav {
   transition: color 0.2s;
 }
 .nav-links a:hover { color: rgba(130,100,240,0.7); }
-.nav-auth { display: flex; align-items: center; gap: 8px; }
+.nav-auth { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .nav-btn {
   background: #321CD6; color: #fff; font-size: 12px; font-weight: 600;
   padding: 6px 16px; border-radius: 8px; transition: background 0.2s;

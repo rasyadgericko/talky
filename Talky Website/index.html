@@ -46,8 +46,10 @@
   }
   </script>
 
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <link rel="preload" href="style.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="style.css"></noscript>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
+  <script src="script.js" defer></script>
 </head>
 <body>
 
@@ -559,8 +561,8 @@
             <div>
               <div class="io-card" id="io-input">
                 <div class="io-label">
-                  <div class="io-dot" style="background:rgba(255,255,255,0.35)"></div>
-                  <span class="io-tag" style="color:rgba(255,255,255,0.45)">Input</span>
+                  <div class="io-dot" style="background:rgba(255,255,255,0.6)"></div>
+                  <span class="io-tag" style="color:rgba(255,255,255,0.7)">Input</span>
                 </div>
                 <p class="io-text" style="color:rgba(255,255,255,0.5)" id="io-input-text"></p>
               </div>
@@ -569,8 +571,8 @@
               </div>
               <div class="io-card output" id="io-output">
                 <div class="io-label">
-                  <div class="io-dot" style="background:rgba(50,28,214,0.5)"></div>
-                  <span class="io-tag" style="color:rgba(50,28,214,0.5)">Output</span>
+                  <div class="io-dot" style="background:rgba(50,28,214,0.8)"></div>
+                  <span class="io-tag" style="color:rgba(50,28,214,0.8)">Output</span>
                   <span class="io-badge" id="io-badge"></span>
                 </div>
                 <p class="io-text" style="color:rgba(255,255,255,0.6)" id="io-output-text"></p>
@@ -686,7 +688,7 @@
   </footer>
 
   <!-- ─── Auth Modal ─── -->
-  <div class="auth-overlay" id="auth-overlay" aria-hidden="true">
+  <div class="auth-overlay" id="auth-overlay" inert>
     <div class="auth-modal" role="dialog" aria-labelledby="auth-title">
       <button class="auth-close" id="auth-close" aria-label="Close">&times;</button>
       <h2 id="auth-title" class="auth-heading">Create your account</h2>
@@ -725,6 +727,5 @@
     </div>
   </div>
 
-  <script src="script.js"></script>
 </body>
 </html>

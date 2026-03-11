@@ -1,0 +1,11 @@
+{
+  "name": "talky-website",
+  "private": true,
+  "scripts": {
+    "build": "node build.js"
+  },
+  "devDependencies": {
+    "clean-css": "^5.3.3",
+    "terser": "^5.37.0"
+  }
+}

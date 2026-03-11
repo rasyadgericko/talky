@@ -595,14 +595,14 @@ function toggleFaq(idx) {
     isSignUp = mode !== 'signin';
     updateModalUI();
     overlay.classList.add('open');
-    overlay.setAttribute('aria-hidden', 'false');
+    overlay.removeAttribute('inert');
     errorEl.textContent = '';
     emailInput.focus();
   }
 
   function closeAuthModal() {
     overlay.classList.remove('open');
-    overlay.setAttribute('aria-hidden', 'true');
+    overlay.setAttribute('inert', '');
     form.reset();
     errorEl.textContent = '';
   }
