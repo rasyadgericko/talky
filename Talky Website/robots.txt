@@ -1,7 +1,7 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://talky.app/sitemap.xml
+Sitemap: https://www.talkyapp.online/sitemap.xml
 
 # Block thank you page from indexing
 Disallow: /thankyou.html
