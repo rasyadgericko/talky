@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { getSettings } from "@/lib/settings";
 import { getSession, getUserTier, isOwnerMode } from "@/lib/auth";
+import { buildVocabularyPrompt, applyVocabulary } from "@/lib/vocabulary";
 
 // Silence detection settings
 const SILENCE_THRESHOLD = 0.01;
@@ -197,6 +198,10 @@ export function useWhisperRecognition(options?: UseWhisperOptions) {
       if (!isOwnerMode() && engine === "whisper-groq" && session) {
         params.set("jwt", session.access_token);
       }
+      const vocabPrompt = buildVocabularyPrompt();
+      if (vocabPrompt) {
+        params.set("vocab", vocabPrompt);
+      }
 
       setInterimTranscript(
         engine === "whisper-groq" ? "Transcribing via Groq..." : "Transcribing..."
@@ -214,7 +219,8 @@ export function useWhisperRecognition(options?: UseWhisperOptions) {
         throw new Error(data.error || "Transcription failed");
       }
 
-      const newText = (data.text || "").trim();
+      const rawText = (data.text || "").trim();
+      const newText = applyVocabulary(rawText);
       if (newText && newText !== "[BLANK_AUDIO]") {
         setTranscript((prev) => (prev ? `${prev} ${newText}` : newText));
         onTranscriptRef.current?.(newText);

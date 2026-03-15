@@ -11,6 +11,7 @@ import {
 import { getStats, formatTimeSaved } from "@/lib/stats";
 import { getSession, signOut, getUserTier, openCheckout, isOwnerMode, type UserTier } from "@/lib/auth";
 import { getLocalUsage, getRemainingWords, getUsagePercent, getWordLimit } from "@/lib/usage";
+import { type VocabularyEntry, getVocabulary, addEntry, removeEntry, clearVocabulary } from "@/lib/vocabulary";
 import AuthModal from "@/components/AuthModal";
 
 type PermissionStatus = "granted" | "denied" | "prompt" | "checking" | "error";
@@ -36,6 +37,9 @@ export default function SettingsPanel({
   const [settings, setSettingsState] = useState<ProviderSettings>(getSettings);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [showAuth, setShowAuth] = useState(false);
+  const [vocabulary, setVocabulary] = useState<VocabularyEntry[]>([]);
+  const [newFrom, setNewFrom] = useState("");
+  const [newTo, setNewTo] = useState("");
 
   const updateSettings = useCallback(
     (updates: Partial<ProviderSettings>) => {
@@ -101,8 +105,29 @@ export default function SettingsPanel({
     if (isOpen) {
       checkMicPermission();
       checkAuth();
+      setVocabulary(getVocabulary());
     }
   }, [isOpen, checkMicPermission, checkAuth]);
+
+  const handleAddEntry = () => {
+    const trimFrom = newFrom.trim();
+    const trimTo = newTo.trim();
+    if (!trimFrom || !trimTo) return;
+    const updated = addEntry(trimFrom, trimTo);
+    setVocabulary(updated);
+    setNewFrom("");
+    setNewTo("");
+  };
+
+  const handleRemoveEntry = (from: string) => {
+    const updated = removeEntry(from);
+    setVocabulary(updated);
+  };
+
+  const handleClearVocabulary = () => {
+    clearVocabulary();
+    setVocabulary([]);
+  };
 
   if (!isOpen) return null;
 
@@ -271,6 +296,76 @@ export default function SettingsPanel({
         )}
       </div>
 
+      {/* ─── Custom Vocabulary ────────────────────────── */}
+      <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-white">Custom Vocabulary</p>
+            <p className="text-xs text-white/40">Replace misheard words with correct spellings</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="flex gap-2 items-center">
+            <input
+              type="text"
+              value={newFrom}
+              onChange={(e) => setNewFrom(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleAddEntry(); }}
+              placeholder="When I hear..."
+              className="flex-1 min-w-0 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/30 outline-none focus:border-white/20"
+            />
+            <span className="text-white/30 text-xs shrink-0">&rarr;</span>
+            <input
+              type="text"
+              value={newTo}
+              onChange={(e) => setNewTo(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleAddEntry(); }}
+              placeholder="Replace with..."
+              className="flex-1 min-w-0 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/30 outline-none focus:border-white/20"
+            />
+          </div>
+          <button
+            onClick={handleAddEntry}
+            className="w-full py-2 bg-white/10 hover:bg-white/15 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
+          >
+            Add
+          </button>
+        </div>
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] text-white/30">{vocabulary.length}/200 entries</p>
+          {vocabulary.length > 0 && (
+            <button
+              onClick={handleClearVocabulary}
+              className="text-[10px] text-white/30 hover:text-white/50 transition-colors cursor-pointer"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+        {vocabulary.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {vocabulary.map((entry) => (
+              <span key={entry.from} className="inline-flex items-center gap-1 px-2 py-1 bg-white/[0.08] border border-white/10 rounded-md text-[11px] text-white/70">
+                {entry.from} <span className="text-white/30">&rarr;</span> {entry.to}
+                <button
+                  onClick={() => handleRemoveEntry(entry.from)}
+                  className="text-white/30 hover:text-white/70 transition-colors cursor-pointer"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* ─── Microphone Permission ─────────────────────── */}
       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 space-y-3">
         <div className="flex items-center justify-between">
@@ -391,6 +486,9 @@ export default function SettingsPanel({
           </div>
         </div>
       </div>
+
+      {/* ─── Check for Updates ─────────────────────────── */}
+      <CheckForUpdatesButton />
     </>
   );
 
@@ -565,6 +663,72 @@ function StatsSection() {
         <StatCard label="Streak" value={`${stats.streakDays}d`} />
         <StatCard label="Dictations" value={stats.dictateCount} />
         <StatCard label="Transforms" value={stats.transformCount} />
+      </div>
+    </div>
+  );
+}
+
+function CheckForUpdatesButton() {
+  const [status, setStatus] = useState<"idle" | "checking" | "up-to-date" | "error">("idle");
+
+  useEffect(() => {
+    const cleanup = window.electronAPI?.onUpdateNotAvailable(() => {
+      setStatus("up-to-date");
+      setTimeout(() => setStatus("idle"), 3000);
+    });
+    return () => { cleanup?.(); };
+  }, []);
+
+  const handleCheck = async () => {
+    if (!window.electronAPI?.checkForUpdates) return;
+    setStatus("checking");
+    try {
+      const result = await window.electronAPI.checkForUpdates();
+      if (!result.checking) {
+        setStatus("error");
+        setTimeout(() => setStatus("idle"), 3000);
+      }
+      // If an update IS available, the UpdateNotification component handles it
+    } catch {
+      setStatus("error");
+      setTimeout(() => setStatus("idle"), 3000);
+    }
+  };
+
+  if (!window.electronAPI?.checkForUpdates) return null;
+
+  return (
+    <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-white">Updates</p>
+          <p className="text-xs text-white/40">
+            {status === "checking" ? "Checking..." : status === "up-to-date" ? "You're up to date!" : status === "error" ? "Could not check for updates" : "Check for new versions"}
+          </p>
+        </div>
+        <button
+          onClick={handleCheck}
+          disabled={status === "checking"}
+          className="px-3 py-1.5 bg-white/10 hover:bg-white/15 disabled:opacity-40 text-white text-[11px] font-medium rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+        >
+          {status === "checking" ? (
+            <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          ) : status === "up-to-date" ? (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          ) : "Check"}
+        </button>
       </div>
     </div>
   );

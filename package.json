@@ -1,6 +1,6 @@
 {
   "name": "talky",
-  "version": "0.2.0",
+  "version": "0.3.3",
   "private": true,
   "main": "dist-electron/main.js",
   "scripts": {
@@ -10,8 +10,9 @@
     "lint": "eslint",
     "electron:compile": "tsc -p electron/tsconfig.json",
     "electron:dev": "npm run build && npm run electron:compile && electron .",
-    "electron:build": "npm run build && npm run electron:compile && node scripts/prepare-electron.mjs && electron-builder --mac",
-    "electron:build:win": "npm run build && npm run electron:compile && node scripts/prepare-electron.mjs && electron-builder --win"
+    "electron:build": "NEXT_PUBLIC_OWNER_MODE= npm run build && npm run electron:compile && node scripts/prepare-electron.mjs && electron-builder --mac",
+    "electron:build:win": "NEXT_PUBLIC_OWNER_MODE= npm run build && npm run electron:compile && node scripts/prepare-electron.mjs && electron-builder --win",
+    "electron:build:owner": "npm run build && npm run electron:compile && node scripts/prepare-electron.mjs && electron-builder --mac -c.appId=com.talky.owner -c.productName='Talky Owner' -c.artifactName=Talky-Owner.dmg -c.dmg.artifactName=Talky-Owner.dmg -c.mac.icon=build/icon-owner.icns"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.0",

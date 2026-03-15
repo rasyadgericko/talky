@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
     const langCode = searchParams.get("lang") || "en";
     const engine = searchParams.get("engine") || "whisper-local";
     const jwt = searchParams.get("jwt") || "";
+    const vocab = searchParams.get("vocab") || "";
 
     // Receive raw PCM float32 audio data as binary
     const arrayBuffer = await request.arrayBuffer();
@@ -100,6 +101,7 @@ export async function POST(request: NextRequest) {
         formData.append("file", new Blob([wavBuffer], { type: "audio/wav" }), "audio.wav");
         formData.append("model", "whisper-large-v3-turbo");
         if (langCode && langCode !== "auto") formData.append("language", langCode);
+        if (vocab) formData.append("prompt", vocab);
 
         const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
           method: "POST",
@@ -128,6 +130,7 @@ export async function POST(request: NextRequest) {
             Authorization: `Bearer ${jwt}`,
             "Content-Type": "application/octet-stream",
             "x-language": langCode,
+            ...(vocab && { "x-vocabulary": vocab }),
           },
           body: arrayBuffer,
         }
@@ -143,6 +146,8 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── Free: Local Whisper ───
+    // Note: @xenova/transformers does not support the `prompt` parameter
+    // for vocabulary hints. Vocabulary only works with Groq cloud.
     const audioData = new Float32Array(arrayBuffer);
     const transcriber = await getTranscriber();
 

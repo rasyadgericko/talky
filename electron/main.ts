@@ -13,7 +13,7 @@ import {
 import { fork, ChildProcess } from "child_process";
 import path from "path";
 import { createServer } from "net";
-import { existsSync, symlinkSync } from "fs";
+import { existsSync, readFileSync, symlinkSync } from "fs";
 import { autoUpdater } from "electron-updater";
 import { getPlatformModule } from "./platform";
 
@@ -76,6 +76,35 @@ function getStandaloneDir(): string {
     return path.join(process.resourcesPath, "standalone");
   }
   return path.join(__dirname, "..", ".next", "standalone");
+}
+
+// Load .env.local so server-side env vars (e.g. GROQ_API_KEY) are available at runtime.
+// For packaged apps, checks ~/Library/Application Support/Talky/.env.local (persists across updates).
+// For dev, checks the project root.
+function parseEnvFile(filePath: string): Record<string, string> {
+  try {
+    if (!existsSync(filePath)) return {};
+    const content = readFileSync(filePath, "utf8");
+    const vars: Record<string, string> = {};
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx === -1) continue;
+      vars[trimmed.slice(0, eqIdx).trim()] = trimmed.slice(eqIdx + 1).trim();
+    }
+    return vars;
+  } catch {
+    return {};
+  }
+}
+
+function loadEnvFile(): Record<string, string> {
+  if (app.isPackaged) {
+    // Persistent location that survives auto-updates
+    return parseEnvFile(path.join(app.getPath("userData"), ".env.local"));
+  }
+  return parseEnvFile(path.join(__dirname, "..", ".env.local"));
 }
 
 function getPreloadPath(): string {
@@ -180,10 +209,12 @@ async function startNextServer(port: number): Promise<void> {
   }
 
   return new Promise((resolve, reject) => {
+    const envFromFile = loadEnvFile();
     serverProcess = fork(serverPath, [], {
       cwd: standaloneDir,
       env: {
         ...process.env,
+        ...envFromFile,
         PORT: String(port),
         HOSTNAME: "127.0.0.1",
         NODE_ENV: "production",
@@ -286,6 +317,16 @@ function setupIPC(): void {
     autoUpdater.quitAndInstall();
   });
 
+  ipcMain.handle("check-for-updates", async () => {
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      return { checking: true, version: result?.updateInfo?.version };
+    } catch (err: any) {
+      console.log("Manual update check failed:", err.message);
+      return { checking: false, error: err.message };
+    }
+  });
+
   // Microphone permission IPC
   ipcMain.handle("request-microphone-access", async () => {
     if (process.platform === "darwin") {
@@ -340,6 +381,19 @@ function setupAutoUpdate(): void {
     console.log(`Update downloaded: ${info.version}`);
     if (islandWindow && !islandWindow.isDestroyed()) {
       islandWindow.webContents.send("update-downloaded", info.version);
+    }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("update-downloaded", info.version);
+    }
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    console.log("App is up to date");
+    if (islandWindow && !islandWindow.isDestroyed()) {
+      islandWindow.webContents.send("update-not-available");
+    }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("update-not-available");
     }
   });
 
