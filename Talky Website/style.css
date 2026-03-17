@@ -245,7 +245,7 @@ nav {
   pointer-events: none;
 }
 .hero-content {
-  max-width: 1152px; margin: 0 auto; position: relative; z-index: 2;
+  max-width: 1024px; margin: 0 auto; position: relative; z-index: 2;
   display: grid; grid-template-columns: 1fr; align-items: center; gap: 48px;
 }
 .hero-text { display: flex; flex-direction: column; }
