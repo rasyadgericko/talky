@@ -593,6 +593,7 @@ function toggleFaq(idx) {
   var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   var currentUser = null;
   var isSignUp = true;
+  var pendingUpgrade = false;
 
   // DOM refs
   var overlay = document.getElementById('auth-overlay');
@@ -674,9 +675,14 @@ function toggleFaq(idx) {
             errorEl.textContent = res.error.message;
             return;
           }
-          // Sign-up success → thank you page
+          // Sign-up success
           closeAuthModal();
-          window.location.href = '/thankyou';
+          if (pendingUpgrade) {
+            pendingUpgrade = false;
+            window.open('https://polar.sh', '_blank');
+          } else {
+            window.location.href = '/thankyou';
+          }
         });
     } else {
       supabase.auth.signInWithPassword({ email: email, password: password })
@@ -686,10 +692,14 @@ function toggleFaq(idx) {
             errorEl.textContent = res.error.message;
             return;
           }
-          // Sign-in success → just close modal
+          // Sign-in success
           currentUser = res.data.user;
           closeAuthModal();
           updateNavAuth();
+          if (pendingUpgrade) {
+            pendingUpgrade = false;
+            window.open('https://polar.sh', '_blank');
+          }
         });
     }
   });
@@ -708,6 +718,18 @@ function toggleFaq(idx) {
       options: { redirectTo: window.location.origin + '/thankyou' }
     });
   });
+
+  // -- Upgrade to Pro --
+  window.handleUpgrade = function(e) {
+    e.preventDefault();
+    if (currentUser) {
+      // TODO: Replace with actual Polar.sh checkout URL once created
+      window.open('https://polar.sh', '_blank');
+    } else {
+      pendingUpgrade = true;
+      openAuthModal('signup');
+    }
+  };
 
   // -- Download gating --
   window.handleDownload = function(e) {
