@@ -679,7 +679,7 @@ function toggleFaq(idx) {
           closeAuthModal();
           if (pendingUpgrade) {
             pendingUpgrade = false;
-            window.open('https://polar.sh/checkout/polar_c_5vpAFnbVdZ9kkx6Q8kb2sMNoZEo1pN3JWhYba23gnbo', '_blank');
+            window.open('https://buy.polar.sh/polar_cl_qht16XIMtzazagIqBHk5biHJOjV7yVtBHdm3H43vSLI', '_blank');
           } else {
             window.location.href = '/thankyou';
           }
@@ -698,7 +698,7 @@ function toggleFaq(idx) {
           updateNavAuth();
           if (pendingUpgrade) {
             pendingUpgrade = false;
-            window.open('https://polar.sh/checkout/polar_c_5vpAFnbVdZ9kkx6Q8kb2sMNoZEo1pN3JWhYba23gnbo', '_blank');
+            window.open('https://buy.polar.sh/polar_cl_qht16XIMtzazagIqBHk5biHJOjV7yVtBHdm3H43vSLI', '_blank');
           }
         });
     }
@@ -724,7 +724,7 @@ function toggleFaq(idx) {
     e.preventDefault();
     if (currentUser) {
       // TODO: Replace with actual Polar.sh checkout URL once created
-      window.open('https://polar.sh/checkout/polar_c_5vpAFnbVdZ9kkx6Q8kb2sMNoZEo1pN3JWhYba23gnbo', '_blank');
+      window.open('https://buy.polar.sh/polar_cl_qht16XIMtzazagIqBHk5biHJOjV7yVtBHdm3H43vSLI', '_blank');
     } else {
       pendingUpgrade = true;
       openAuthModal('signup');
