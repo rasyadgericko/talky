@@ -588,7 +588,7 @@ function toggleFaq(idx) {
 (function() {
   var SUPABASE_URL = 'https://hveankwjtfvcztcrurlm.supabase.co';
   var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2ZWFua3dqdGZ2Y3p0Y3J1cmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNzExNTQsImV4cCI6MjA4ODY0NzE1NH0.fyfBlM_kknWTD6hI_hP7CYfjmYZXSZZc9I1cZRf6URE';
-  var DOWNLOAD_URL = 'https://github.com/rasyadgericko/talky/releases/latest/download/Talky-0.2.0-arm64.dmg';
+  var DOWNLOAD_URL = 'https://github.com/rasyadgericko/talky/releases/download/v0.3.3/Talky-0.3.3-arm64.dmg';
 
   var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   var currentUser = null;
