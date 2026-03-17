@@ -676,7 +676,7 @@ function toggleFaq(idx) {
           }
           // Sign-up success → thank you page
           closeAuthModal();
-          window.location.href = 'thankyou.html';
+          window.location.href = '/thankyou';
         });
     } else {
       supabase.auth.signInWithPassword({ email: email, password: password })
@@ -698,14 +698,14 @@ function toggleFaq(idx) {
   googleBtn.addEventListener('click', function() {
     supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/thankyou.html' }
+      options: { redirectTo: window.location.origin + '/thankyou' }
     });
   });
 
   githubBtn.addEventListener('click', function() {
     supabase.auth.signInWithOAuth({
       provider: 'github',
-      options: { redirectTo: window.location.origin + '/thankyou.html' }
+      options: { redirectTo: window.location.origin + '/thankyou' }
     });
   });
 
