@@ -55,6 +55,7 @@ body {
   overflow-x: hidden;
 }
 ::selection { background: rgba(50,28,214,0.3); }
+.page-wrap { overflow-x: hidden; position: relative; width: 100%; }
 a { text-decoration: none; color: inherit; }
 button { border: none; background: none; cursor: pointer; font-family: inherit; color: inherit; }
 kbd { font-family: 'SF Mono', 'Fira Code', monospace; }
@@ -249,7 +250,7 @@ nav {
 }
 .hero::before {
   content: ""; position: absolute; top: -20%; left: 50%; transform: translateX(-50%);
-  width: 800px; height: 600px;
+  width: 100%; max-width: 800px; height: 600px;
   background: radial-gradient(ellipse, rgba(50,28,214,0.05) 0%, transparent 70%);
   pointer-events: none;
 }
